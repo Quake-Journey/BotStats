@@ -1,4 +1,6 @@
 import { MongoClient } from 'mongodb';
+import {computeAchievements,publicAchievements,achievementDetail} from './achievements.js';
+import {buildDynamics} from './dynamics.js';
 import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
 
 const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -85,9 +87,34 @@ export async function openStore(config) {
   await demos.createIndex({'matches.startedAt':-1});await demos.createIndex({'matches.map':1});
   await demos.createIndex({'matches.participants.name':1});
   const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion'}]}}}];
+  let awardRevision=0,awardCache=null,awardPending=null;
+  async function awardIndex(){
+    const revision=awardRevision;
+    if(awardCache?.revision===revision&&Date.now()-awardCache.at<30000)return awardCache.value;
+    if(awardPending?.revision===revision)return awardPending.promise;
+    const promise=(async()=>{
+      const rows=await demos.aggregate([...base(),{$project:{demo:0,stateHistory:0,settingsChanges:0,events:0}}]).toArray();
+      const value=computeAchievements(rows);
+      if(awardRevision===revision)awardCache={revision,at:Date.now(),value};
+      return value;
+    })();
+    awardPending={revision,promise};
+    try{return await promise;}finally{if(awardPending?.promise===promise)awardPending=null;}
+  }
   return {
     close:()=>client.close(),ping:()=>db.command({ping:1}),demo:sha=>demos.findOne({_id:sha}),
-    async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});},
+    async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});awardRevision++;awardCache=null;},
+    async achievements(){return publicAchievements(await awardIndex());},
+    async achievement(id,query){return achievementDetail(await awardIndex(),id,query);},
+    async dynamics(query){
+      // This view always includes all skills and technical results. Unrelated
+      // rating-tab filters in a shared URL cannot silently remove forfeits.
+      const allowed=['period','from','to','q','map','bot','style','modVersion'];
+      const selected=Object.fromEntries(allowed.filter(k=>query[k]).map(k=>[k,query[k]]));
+      const now=new Date(),range={...selected,...periodBounds(selected.period,now)};
+      const rows=await demos.aggregate([...base(),{$match:filters(selected,now)},{$project:{startedAt:1,status:1,winnerIndex:1,ratingExcluded:1,'participants.isBot':1}}]).toArray();
+      return buildDynamics(rows,range,now);
+    },
     async match(id){const m=(await demos.aggregate([...base(),{$match:{id}},{$limit:1}]).toArray())[0];return m?{...m,rating:ratingDetails(m)}:null;},
     async list(query){
       const page=Math.max(1,Math.min(10000,Number(query.page)||1)),limit=20;

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { createService } from '../src/server.js';
 import { sendManifest } from '../src/importer.js';
 import { parseTable } from '../src/parser.js';
+import {game} from './support/achievement-fixtures.js';
 
 test('API: auth, validation, durable publication, dedupe, download and filters',async()=>{
   const payload=Buffer.from('4d56443203000102030000','hex'),sha=createHash('sha256').update(payload).digest('hex');
@@ -57,6 +58,27 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
       const smallest=await(await fetch(apiUrl+'/api/matches?q=sorting-probe&humanDefeats=1&sort_matches=margin&dir_matches=asc')).json();assert.equal(smallest.items[0].participants[0].score,5);
       const cannot=await(await fetch(apiUrl+'/api/matches?q=sorting-probe&humanDefeats=1&status=interrupted')).json();assert.equal(cannot.total,0);
       assert.equal(defeats.items[0].rating.difficulty.factor,1);
+    }finally{await store.save(fixture);}
+    const awards=structuredClone(fixture);
+    awards.matches=Array.from({length:100},(_,i)=>({...game(i,{human:'Award API probe',hs:i+20}),id:sha+'-0-'+i}));
+    await store.save(awards);
+    try{
+      const catalog=await(await fetch(apiUrl+'/api/achievements')).json();
+      assert.ok(catalog.items.find(a=>a.id==='farm-owner').holders.some(p=>p.name==='Award API probe'));
+      const proof=await(await fetch(apiUrl+'/api/achievements/farm-owner?player=Award%20API%20probe&page=2&sort_award_evidence=score&dir_award_evidence=desc')).json();
+      assert.equal(proof.evidence.total,100);assert.equal(proof.evidence.matches[0].score[0],99,'Sort all evidence before pagination');
+      assert.equal((await fetch(apiUrl+'/api/achievements/unknown')).status,404);
+      await store.save({...awards,matches:awards.matches.slice(0,99)});
+      const corrected=await(await fetch(apiUrl+'/api/achievements')).json();
+      assert.ok(!corrected.items.find(a=>a.id==='farm-owner')?.holders.some(p=>p.name==='Award API probe'),'Successful import immediately invalidates the cache');
+      assert.equal((await store.match(awards.matches[0].id)).participants[0].score,20,'Achievement reads do not rewrite scores');
+      const trend=structuredClone(awards);
+      trend.matches=[game(0,{human:'Dynamics API probe',skill:50}),game(1,{human:'Dynamics API probe',skill:200,hs:30,bs:0,status:'forfeit',winnerIndex:1}),game(2,{human:'Dynamics API probe',status:'interrupted'})].map((m,i)=>({...m,id:sha+'-0-'+i}));
+      await store.save(trend);
+      const dynamics=await(await fetch(apiUrl+'/api/dynamics?q=Dynamics%20API%20probe&skill=200&status=completed&period=custom&from=2026-10-01&to=2026-10-01')).json();
+      assert.equal(dynamics.totals.humanWins,1,'All skills without rating weights');
+      assert.equal(dynamics.totals.botWins,1,'Forfeit counts despite an inherited completed-only filter');
+      assert.equal(dynamics.totals.forfeits,1);assert.equal(dynamics.points.length,1);
     }finally{await store.save(fixture);}
   }finally{await new Promise(r=>server.close(r));await store.close();}
 });

@@ -67,6 +67,9 @@ export async function createService(config) {
   api.get('/api/matches/:id',async(req,res,next)=>{try{const m=await store.match(req.params.id);if(!m)return res.status(404).json({error:'Not found'});res.json({...m,scoreHistory:completeScoreHistory(m)});}catch(e){next(e);}});
   api.get('/api/facets',async(req,res,next)=>{try{res.json(await store.facets());}catch(e){next(e);}});
   api.get('/api/summary',async(req,res,next)=>{try{res.json(await store.summary(req.query));}catch(e){next(e);}});
+  api.get('/api/dynamics',async(req,res,next)=>{try{res.setHeader('Cache-Control','no-cache');res.json(await store.dynamics(req.query));}catch(e){next(e);}});
+  api.get('/api/achievements',async(req,res,next)=>{try{res.setHeader('Cache-Control','no-cache');res.json(await store.achievements());}catch(e){next(e);}});
+  api.get('/api/achievements/:id',async(req,res,next)=>{try{const value=await store.achievement(req.params.id,req.query);if(!value)return res.status(404).json({error:'Not found'});res.setHeader('Cache-Control','no-cache');res.json(value);}catch(e){next(e);}});
   api.get('/api/demos/:sha',async(req,res,next)=>{try{if(!hashPattern.test(req.params.sha))return res.sendStatus(404);const m=await store.demo(req.params.sha);if(!m)return res.sendStatus(404);res.download(path.join(demoRoot,req.params.sha+'.mvd2'),m.demo.originalName);}catch(e){next(e);}});
   api.use('/assets/'+assets.revision,(req,res,next)=>{
     if(!['GET','HEAD'].includes(req.method))return next();
