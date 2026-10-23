@@ -1,0 +1,50 @@
+ 
+=================== MATCH STATS ===================
+Map q2duel5: David-X[200] 13 - 4 pp
+Player                           Frags Deaths Suic DmgGave DmgTook
+David-X[200] 200 default            13      4    0    3105    1617
+pp                                   4     13    0    1523    3105
+Kills (who killed whom):
+  David-X[200] 200 default -> pp: 13
+  pp -> David-X[200] 200 default: 4
+ 
+--- David-X[200] 200 default ---
+  Weapon      Acc Hits/Shots Kills Deaths  Dealt  Recvd Pick Miss
+  Blaster     13%        1/8     0      0     15      0    -    -
+  S.Shotgun     -        0/0     0      0      0      0    2    1
+  C.Gun       19%    132/723     3      0    792      0   13    1
+  G.Launch      -        0/0     0      0      0    110    1    6
+  R.Launch    18%      10/56     1      1    833    432    5    9
+  H.Blaster   15%      11/75     1      0    165     75    5    2
+  Railgun     62%      13/21     8      3   1300   1000    6   13
+  Total       19%    167/883    13      4   3105   1617
+  Item             Pick Miss
+  Combat Armor       16   25
+  Adrenaline          0    7
+  Kills Deaths Suic TKs Tele  Dealt  Recvd TDealt TRecvd
+     13      4    0   0    0   3105   1617      0      0
+  All pickups: Health 25 8, Health 10 13, Combat Armor 16, Armor Shard 23,
+         Super Shotgun 2, Chaingun 13, Grenades 8, Grenade Launcher 2,
+         Rocket Launcher 7, HyperBlaster 5, Railgun 7, Shells 4, Bullets 19,
+         Cells 6, Rockets 6, Slugs 7
+ 
+--- pp ---
+  Weapon      Acc Hits/Shots Kills Deaths  Dealt  Recvd Pick Miss
+  Blaster      0%        0/5     0      0      0     15    -    -
+  S.Shotgun     -        0/0     0      0      0      0    1    2
+  C.Gun         -        0/0     0      3      0    792    1   13
+  G.Launch     4%       1/27     0      0    110      0    6    1
+  R.Launch     6%       4/68     1      1    338    833    9    5
+  H.Blaster   28%       5/18     0      1     75    165    2    5
+  Railgun     24%      10/43     3      8   1000   1300   13    6
+  Total       13%     20/161     4     13   1523   3105
+  Item             Pick Miss
+  Combat Armor       25   16
+  Adrenaline          7    0
+  Kills Deaths Suic TKs Tele  Dealt  Recvd TDealt TRecvd
+      4     13    0   0    0   1523   3105      0      0
+  All pickups: Health 25 8, Health 10 25, Combat Armor 25, Armor Shard 13,
+         Super Shotgun 1, Chaingun 3, Grenades 8, Grenade Launcher 7,
+         Rocket Launcher 9, HyperBlaster 3, Railgun 13, Shells 2,
+         Bullets 12, Cells 3, Rockets 8, Slugs 4, Adrenaline 7
+=====================================================

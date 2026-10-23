@@ -1,0 +1,29 @@
+{
+  "name": "q2pro-x-botstats",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.17"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "import": "node src/importer.js",
+    "test": "node --test test/*.test.js",
+    "test:browser": "node test/browser.mjs"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "mongodb": "6.20.0",
+    "ajv": "8.17.1"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  },
+  "description": "MVD2-based human-versus-bot match statistics for Q2PRO-X / OpenTDM-X",
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Quake-Journey/BotStats.git"
+  }
+}

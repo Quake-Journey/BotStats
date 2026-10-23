@@ -1,0 +1,10 @@
+{
+  "sourceDir": "./demos",
+  "decoder": "./bin/mvd-decoder.exe",
+  "apiUrl": "http://127.0.0.1:3085/botstats",
+  "ingestToken": "SAME_SECRET_AS_THE_SERVICE",
+  "queueDir": "./data/queue",
+  "settleSeconds": 15,
+  "pollSeconds": 10,
+  "serverUtcOffset": "+03:00"
+}

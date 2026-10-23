@@ -1,0 +1,103 @@
+import { MongoClient } from 'mongodb';
+import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
+
+const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const botFirst={$arrayElemAt:['$participants.isBot',0]};
+const humanScore={$cond:[botFirst,{$arrayElemAt:['$participants.score',1]},{$arrayElemAt:['$participants.score',0]}]};
+const botScore={$cond:[botFirst,{$arrayElemAt:['$participants.score',0]},{$arrayElemAt:['$participants.score',1]}]};
+export function periodBounds(period,now=new Date()) {
+  const days={today:1,three:3,week:7,month:30,year:365}[period];
+  if(!days)return null;
+  const today=new Date(now.getTime()+3*3600000).toISOString().slice(0,10);
+  const midnight=Date.parse(today+'T00:00:00Z');
+  return {from:new Date(midnight-(days-1)*86400000).toISOString().slice(0,10),to:today};
+}
+export function filters(query,now=new Date()) {
+  query={...query,...periodBounds(query.period,now)};
+  const q={};
+  for(const key of ['map','status','modVersion'])if(query[key])q[key]=String(query[key]).slice(0,80);
+  if(query.overtime==='1')q.overtime=true;
+  if(query.q)q['participants.name']={$regex:escapeRegex(String(query.q).slice(0,80)),$options:'i'};
+  const bot={isBot:true};
+  if(query.bot)bot.profile=String(query.bot).slice(0,80);
+  if(query.style)bot['styleTimeline.value']=String(query.style).slice(0,20);
+  if(query.skill==='variable')bot.skillVariable=true;
+  else if(query.skill && /^\d+$/.test(query.skill))bot['skillTimeline.value']=+query.skill;
+  if(Object.keys(bot).length>1)q.participants={$elemMatch:bot};
+  if(query.identity){const identity={isBot:query.kind==='bot'};identity[query.kind==='bot'?'profile':'name']=String(query.identity).slice(0,128);if(q.participants)q.$and=[{participants:q.participants},{participants:{$elemMatch:identity}}];else q.participants={$elemMatch:identity};if(q.$and)delete q.participants;}
+  if(query.from && /^\d{4}-\d\d-\d\d$/.test(query.from)&&Number.isFinite(Date.parse(query.from+'T00:00:00+03:00')))q.startedAt={$gte:new Date(query.from+'T00:00:00+03:00').toISOString()};
+  if(query.to && /^\d{4}-\d\d-\d\d$/.test(query.to)&&Number.isFinite(Date.parse(query.to+'T23:59:59.999+03:00')))q.startedAt={...q.startedAt,$lte:new Date(query.to+'T23:59:59.999+03:00').toISOString()};
+  if(query.humanDefeats==='1'){
+    q.$and=[...(q.$and||[]),{status:{$in:['completed','forfeit']}}];
+    q.ratingExcluded=null;
+    q.winnerIndex={$in:[0,1]};
+    q.$expr={$and:[{$eq:[{$arrayElemAt:['$participants.isBot',{$ifNull:['$winnerIndex',0]}]},true]},{$gt:[botScore,humanScore]}]};
+  }
+  return q;
+}
+
+export function aggregateMatches(rows,includeMaps=true){
+  const players=new Map();let humanWins=0,botWins=0,finished=0;
+  for(const m of rows){
+    const known=resultKnown(m);
+    if(known){finished++;if(m.winnerIndex!==null){if(m.participants[m.winnerIndex].isBot)botWins++;else humanWins++;}}
+    for(let i=0;i<m.participants.length;i++){
+      const p=m.participants[i],name=p.isBot?p.profile:p.name,key=`${p.isBot}:${name}`;
+      if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0});
+      const r=players.get(key);r.matches++;r.score+=p.score;r.opponentScore+=m.participants[1-i].score;
+      r.completedMatches=(r.completedMatches||0)+Number(m.status==='completed');
+      r.victoryPoints=(r.victoryPoints||0)+(victoryPoints(m,i)??0);
+      r.unscoredWins=(r.unscoredWins||0)+Number(known&&m.status==='completed'&&m.winnerIndex===i&&victoryPoints(m,i)===null);
+      if(known){
+        r.finished++;const points=matchPoints(m,i);if(points!==null){r.ratedMatches++;r.points+=points;}
+        if(m.winnerIndex===i){r.wins++;if(m.status==='forfeit')r.forfeitWins++;}
+        else if(m.winnerIndex===null)r.draws++;
+        else {r.losses++;if(m.status==='forfeit')r.forfeits++;}
+        if(m.overtime){r.overtimeMatches++;if(m.status==='forfeit')r.overtimeForfeits++;else if(m.winnerIndex===i)r.overtimeWins++;else if(m.winnerIndex!==null)r.overtimeLosses++;}
+      }
+      if(p.stats){r.statsMatches++;r.kills+=p.stats.kills;r.deaths+=p.stats.deaths;r.damage+=p.stats.damageDealt;}
+    }
+  }
+  const result={matches:rows.length,finished,interrupted:rows.length-finished,humanWins,botWins,fullStats:rows.filter(x=>x.statsComplete).length,minutes:Math.round(rows.reduce((s,x)=>s+(x.durationSeconds??x.recordedSeconds),0)/60),players:[...players.values()].map(p=>({...p,
+    normalWins:p.wins-p.forfeitWins,normalLosses:p.losses-p.forfeits,winRate:p.finished?p.wins/p.finished*100:null,pointsPerMatch:p.ratedMatches?p.points/p.ratedMatches:null,unratedMatches:p.finished-p.ratedMatches,
+    averageScore:p.matches?p.score/p.matches:null,averageOpponentScore:p.matches?p.opponentScore/p.matches:null,
+    fragDifference:p.score-p.opponentScore,averageFragDifference:p.matches?(p.score-p.opponentScore)/p.matches:null,
+    averageKills:p.statsMatches?p.kills/p.statsMatches:null,averageDeaths:p.statsMatches?p.deaths/p.statsMatches:null,
+    killDeathDifference:p.statsMatches?p.kills-p.deaths:null,averageKillDeathDifference:p.statsMatches?(p.kills-p.deaths)/p.statsMatches:null,
+    averageDamage:p.statsMatches?p.damage/p.statsMatches:null
+  })).sort((a,b)=>b.points-a.points||b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name))};
+  result.ratingPolicy=ratingPolicy;
+  result.completedMatches=rows.filter(m=>m.status==='completed').length;
+  result.overtimeMatches=rows.filter(m=>m.overtime&&resultKnown(m)).length;
+  if(includeMaps)result.byMap=[...new Set(rows.map(m=>m.map))].sort().map(map=>({map,...aggregateMatches(rows.filter(m=>m.map===map),false)}));
+  return result;
+}
+export function matchSortStages(query) {
+  const values={date:'$startedAt',map:'$map',match:{$concat:[{$arrayElemAt:['$participants.name',0]},' ',{$arrayElemAt:['$participants.name',1]}]},score:{$arrayElemAt:['$participants.score',0]},status:'$status',duration:{$ifNull:['$durationSeconds','$recordedSeconds']},version:'$modVersion',margin:{$subtract:[botScore,humanScore]},human:{$cond:[botFirst,{$arrayElemAt:['$participants.name',1]},{$arrayElemAt:['$participants.name',0]}]},bot:{$cond:[botFirst,{$arrayElemAt:['$participants.name',0]},{$arrayElemAt:['$participants.name',1]}]},humanScore};
+  const key=Object.hasOwn(values,query.sort_matches)?query.sort_matches:'date';
+  const direction=query.dir_matches==='asc'?1:-1;
+  return [{$set:{sortValue:values[key],sortTie:key==='score'?{$arrayElemAt:['$participants.score',1]}:'$startedAt'}},{$set:{sortMissing:{$cond:[{$eq:[{$ifNull:['$sortValue',null]},null]},1,0]}}},{$sort:{sortMissing:1,sortValue:direction,sortTie:direction,id:1}}];
+}
+export async function openStore(config) {
+  if(!/^q2pro_botstats(?:_[a-z0-9_]+)?$/.test(config.database))throw new Error('Use a separate q2pro_botstats database');
+  const client=new MongoClient(config.mongoUri,{serverSelectionTimeoutMS:5000});
+  await client.connect();const db=client.db(config.database),demos=db.collection('demos');
+  await demos.createIndex({'matches.startedAt':-1});await demos.createIndex({'matches.map':1});
+  await demos.createIndex({'matches.participants.name':1});
+  const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion'}]}}}];
+  return {
+    close:()=>client.close(),ping:()=>db.command({ping:1}),demo:sha=>demos.findOne({_id:sha}),
+    async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});},
+    async match(id){const m=(await demos.aggregate([...base(),{$match:{id}},{$limit:1}]).toArray())[0];return m?{...m,rating:ratingDetails(m)}:null;},
+    async list(query){
+      const page=Math.max(1,Math.min(10000,Number(query.page)||1)),limit=20;
+      const [r]=await demos.aggregate([...base(),{$match:filters(query)},...matchSortStages(query),{$facet:{total:[{$count:'n'}],items:[{$skip:(page-1)*limit},{$limit:limit},{$project:{events:0,stateHistory:0,scoreHistory:0,sortValue:0,sortTie:0,sortMissing:0}}]}}],{collation:{locale:'en',numericOrdering:true,strength:2}}).toArray();
+      return {items:r.items.map(m=>({...m,rating:ratingDetails(m)})),total:r.total[0]?.n||0,page,pages:Math.ceil((r.total[0]?.n||0)/limit)};
+    },
+    async facets(){const rows=await demos.aggregate([...base(),{$project:{map:1,modVersion:1,participants:1}}]).toArray();const values=fn=>[...new Set(rows.flatMap(fn).filter(x=>x!==null&&x!==undefined))].sort();return {maps:values(x=>[x.map]),versions:values(x=>[x.modVersion]),bots:values(x=>x.participants.filter(p=>p.isBot).map(p=>p.profile)),styles:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.style,...(p.styleTimeline||[]).map(x=>x.value)])),skills:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.skill,...(p.skillTimeline||[]).map(x=>x.value)]))};},
+    async summary(query){
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
+      return aggregateMatches(rows);
+    }
+  };
+}

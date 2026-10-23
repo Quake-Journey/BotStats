@@ -1,0 +1,46 @@
+Stats for Syanid-X[200]:
+
+            Item | Acc. Kills Deaths Dealt Recvd Pick Miss
+-----------------+----------------------------------------
+         Blaster |  50%     0      -   420     -    0    0
+   Super Shotgun |  78%     0      -   192     -    7    4
+        Chaingun |  28%     0      8   192  1932    3   12
+        Grenades |   0%     0      -     0     -    0    0
+Grenade Launcher |   0%     0      -     0     -    5    8
+ Rocket Launcher |  23%     2      0  1078   188    7    6
+         Railgun |  54%     0      5  1600   900    6    6
+      Body Armor |    -     -      -     -     -    4   18
+    Combat Armor |    -     -      -     -     -   12   19
+    Jacket Armor |    -     -      -     -     -    7    2
+      Adrenaline |    -     -      -     -     -    3    3
+       Ammo Pack |    -     -      -     -     -    2    1
+      MegaHealth |    -     -      -     -     -    2    8
+
+Total  | Kills Dths Sui TKs Tele Dealt Recvd TDealt TRecvd
+-------+--------------------------------------------------
+Player |     2   13   0   0    0  3482  3020      0      0
+
+Stats for pp:
+
+            Item | Acc. Kills Deaths Dealt Recvd Pick Miss
+-----------------+----------------------------------------
+         Blaster |    -     -      0     -   420    0    0
+   Super Shotgun |    -     -      0     -   192    4    7
+        Chaingun |  16%     8      0  1932   192   12    3
+        Grenades |   0%     0      -     0     -    0    0
+Grenade Launcher |   0%     0      -     0     -    8    5
+ Rocket Launcher |   0%     0      2     0  1125    6    7
+         Railgun |  33%     5      0   900  1600    6    6
+      Body Armor |    -     -      -     -     -   18    4
+    Combat Armor |    -     -      -     -     -   19   12
+    Jacket Armor |    -     -      -     -     -    2    7
+      Adrenaline |    -     -      -     -     -    3    3
+       Ammo Pack |    -     -      -     -     -    1    2
+      MegaHealth |    -     -      -     -     -    8    2
+
+Total  | Kills Dths Sui TKs Tele Dealt Recvd TDealt TRecvd
+-------+--------------------------------------------------
+Player |    13    2   0   0    0  2832  3529      0      0
+
+Timelimit hit. Match ended.
+pp wins, 13 to 2.

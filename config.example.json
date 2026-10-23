@@ -1,0 +1,7 @@
+{
+  "host": "127.0.0.1", "port": 3085, "basePath": "/botstats",
+  "mongoUri": "mongodb://127.0.0.1:27017/?directConnection=true",
+  "database": "q2pro_botstats", "storageDir": "./data",
+  "ingestToken": "REPLACE_WITH_A_RANDOM_SECRET_AT_LEAST_32_CHARACTERS",
+  "maxDemoBytes": 134217728
+}
