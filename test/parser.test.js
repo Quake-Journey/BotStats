@@ -40,6 +40,19 @@ test('chat cannot forge final score and final detailed table retains precedence'
   event('print',{time_ms:300100,level:2,text:'David-X[200] wins, 99 to 0.\n'});
   event('print',{time_ms:300200,level:2,text:await readFile(new URL('./fixtures/stats.txt',import.meta.url),'utf8')});
   const m=summarize(c,meta).matches[0];assert.deepEqual(m.participants.map(p=>p.score),[13,4]);assert.equal(m.scoreSource,'server_stats');
+  assert.deepEqual(m.scoreHistory.at(-1),{timeMs:m.timelineDurationMs,scores:[13,4]});
+});
+
+test('sudden death final table supplies the winning frag missing from the last HUD',()=>{
+  const {c,event,frame}=scene();
+  frame(21600,'David-X[200]',[0,1]);frame(43700,'David-X[200]',[1,1]);
+  event('print',{time_ms:120000,level:2,text:'Scores are tied. Sudden Death!\n'});
+  event('print',{time_ms:171100,level:2,text:'David-X[200] wins, 2 to 1.\n'});
+  // The printed table orders participants differently from the HUD.
+  event('print',{time_ms:171100,level:2,text:'MATCH STATS\nMap q2duel5: q 1 - 2 David-X[200]\n==========\n'});
+  const m=summarize(c,meta).matches[0];
+  assert.equal(m.scoreSource,'server_stats');assert.equal(m.status,'completed');
+  assert.deepEqual(m.scoreHistory,[{timeMs:0,scores:[0,0]},{timeMs:21600,scores:[1,0]},{timeMs:43700,scores:[1,1]},{timeMs:171100,scores:[1,2]}]);
 });
 test('skill comes from name changes, has complete intervals, and ignores repeated names',()=>{
   const {c,event,frame}=scene();frame(135000,'David-X[150]',[3,1]);frame(200000,'David-X[150]',[4,1]);frame(300000,'David-X[200]',[5,1]);event('print',{time_ms:300000,level:2,text:'David-X[200] wins, 5 to 1.\n'});

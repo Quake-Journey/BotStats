@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openStore } from './store.js';
 import { loadAssets } from './assets.js';
+import { completeScoreHistory } from '../public/score-history.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const hashPattern=/^[a-f0-9]{64}$/;
@@ -63,7 +64,7 @@ export async function createService(config) {
   });
   api.get('/api/health',async(req,res,next)=>{try{await store.ping();res.json({ok:true,version:'0.1.0'});}catch(e){next(e);}});
   api.get('/api/matches',async(req,res,next)=>{try{res.json(await store.list(req.query));}catch(e){next(e);}});
-  api.get('/api/matches/:id',async(req,res,next)=>{try{const m=await store.match(req.params.id);if(!m)return res.status(404).json({error:'Not found'});res.json(m);}catch(e){next(e);}});
+  api.get('/api/matches/:id',async(req,res,next)=>{try{const m=await store.match(req.params.id);if(!m)return res.status(404).json({error:'Not found'});res.json({...m,scoreHistory:completeScoreHistory(m)});}catch(e){next(e);}});
   api.get('/api/facets',async(req,res,next)=>{try{res.json(await store.facets());}catch(e){next(e);}});
   api.get('/api/summary',async(req,res,next)=>{try{res.json(await store.summary(req.query));}catch(e){next(e);}});
   api.get('/api/demos/:sha',async(req,res,next)=>{try{if(!hashPattern.test(req.params.sha))return res.sendStatus(404);const m=await store.demo(req.params.sha);if(!m)return res.sendStatus(404);res.download(path.join(demoRoot,req.params.sha+'.mvd2'),m.demo.originalName);}catch(e){next(e);}});

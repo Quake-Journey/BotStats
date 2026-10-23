@@ -16,6 +16,7 @@ for(const [name,engine]of Object.entries({chromium,firefox,webkit})){
       await page.selectOption('#theme','dark');assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
       await page.selectOption('#theme','light');assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No page-wide overflow');
+      await page.locator('.primary-filters summary').click();
       await page.fill('#f-q','David');await page.locator('#filters button[type=submit]').click();await page.waitForFunction(()=>document.querySelector('#count')?.textContent.startsWith('2 '));assert.equal(await page.locator('.match-row').count(),2);
       await page.selectOption('#f-map','q3t2');await page.waitForSelector('.empty');
       await page.click('#reset');await page.waitForSelector('.match-row');

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 
-export const PARSER_VERSION = '0.1.4';
+export const PARSER_VERSION = '0.1.5';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
@@ -271,7 +271,7 @@ export function summarize(collector, meta) {
         if(scores.some(x=>x===null))continue;
         if(!scoreHistory.length || scoreHistory.at(-1).scores.some((x,i)=>x!==scores[i]))scoreHistory.push({timeMs:gameTime(f.timeMs),scores});
       }
-      if(scoreSource==='server_result'&&(!scoreHistory.length||scoreHistory.at(-1).scores.some((x,i)=>x!==participants[i].score)))scoreHistory.push({timeMs:gameTime(end),scores:participants.map(p=>p.score)});
+      if(['server_stats','server_result'].includes(scoreSource)&&(!scoreHistory.length||scoreHistory.at(-1).scores.some((x,i)=>x!==participants[i].score)))scoreHistory.push({timeMs:gameTime(end),scores:participants.map(p=>p.score)});
       const stateHistory=participants.map(p=>({name:p.name,samples:fs.filter(f=>f.timeMs<=end && f.timeMs%1000<100 && baseName(f.name)===baseName(p.name)).map(f=>({timeMs:gameTime(f.timeMs),health:f.health,armor:f.armor}))}));
       const winnerMessage=ps.map(p=>p.text.match(/^(.+?) wins(?:,| by )/)).find(Boolean);
       const winnerName=winnerMessage?.[1];

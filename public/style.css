@@ -119,3 +119,8 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 .match-duration .duration-value{grid-column:2;grid-row:1/3;font-size:34px;line-height:1.3;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap}
 .match-duration .duration-note{font-size:15px;color:var(--muted)}
 @media(max-width:640px){.match-duration{grid-template-columns:1fr;padding:16px 18px;gap:6px}.match-duration .duration-value{grid-column:1;grid-row:2;font-size:30px}.match-duration .duration-label{font-size:18px}.match-duration .duration-note{font-size:14px}}
+/* Primary filters use native disclosure on desktop and mobile alike. */
+.primary-filters summary{font-size:15px;color:var(--muted);cursor:pointer;width:fit-content;padding:5px 0}
+.primary-filters .filters{margin-top:10px}
+@media(max-width:640px){.primary-filters summary{font-size:14px}}
+@media(max-width:640px){.chart{height:140px}.chart text{font-size:26px}}

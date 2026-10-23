@@ -23,6 +23,13 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
     assert.equal((await fetch(apiUrl+'/api/ingest/demos/'+'0'.repeat(64),{method:'PUT',body:'bad file',headers:{'x-ingest-token':config.ingestToken}})).status,422);
     assert.equal((await sendManifest({...config,apiUrl},file,fixture)).accepted,true);
     assert.equal((await sendManifest({...config,apiUrl},file,fixture)).duplicate,true);
+    const oldImport=structuredClone(fixture);
+    Object.assign(oldImport.matches[0],{scoreSource:'server_stats',timelineDurationMs:600000,scoreHistory:[{timeMs:0,scores:[0,0]},{timeMs:590000,scores:[12,4]}]});
+    await store.save(oldImport);
+    const detail=await(await fetch(apiUrl+'/api/matches/'+fixture.matches[0].id)).json();
+    assert.deepEqual(detail.scoreHistory.at(-1),{timeMs:600000,scores:[13,4]});
+    assert.equal((await store.match(fixture.matches[0].id)).scoreHistory.length,2,'Reading old data does not rewrite it');
+    await store.save(fixture);
     const matches=await(await fetch(apiUrl+'/api/matches')).json();assert.equal(matches.items.filter(m=>m.demo.sha256===sha).length,1);
     assert.equal((await(await fetch(apiUrl+'/api/matches?q=pp&map=q2duel5')).json()).items.some(m=>m.demo.sha256===sha),true);
     assert.equal((await(await fetch(apiUrl+'/api/matches?q=%5B.*%5D')).json()).total,0);
