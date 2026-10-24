@@ -1,5 +1,6 @@
 import {aboutPage} from './about.js';
 import {dynamicsPage,mountDynamics} from './dynamics-ui.js';
+import {winsWithHistory} from './win-history.js';
 import {achievementBadges,achievementProfile,achievementsPage,achievementPage} from './achievements-ui.js';
 let awardCatalog={items:[]};
 import {completeScoreHistory,scoreAxis} from './score-history.js';
@@ -128,11 +129,11 @@ function rankTable(rows,map=false,id=map?'maps':'rating'){
     {key:'averageFragDifference',label:t('averageDifference'),value:r=>r.averageFragDifference,render:r=>num(r.averageFragDifference,1)}];
   return renderTable(id,columns,data,{params,lang,defaultKey:map?'map':'points',defaultDir:map?'asc':'desc'});
 }
-function victoryTable(rows,id,mode){
+function victoryTable(rows,id,mode,asOf){
   const data=rows.map((r,i)=>({...r,rank:i+1}));
   const keys=mode==='activity'?['completedMatches','normalWins','normalLosses','victoryPoints']:['victoryPoints','normalWins','completedMatches'];
   const columns=[{key:'name',label:t('player'),text:true,value:r=>r.name,render:r=>`<span class="rank">${r.rank}</span><a href="${esc(url({profile:r.name,kind:'human',match:null}))}">${esc(r.name)}</a>${badges(r)}`},
-    ...keys.map(key=>({key,label:t(key),hint:key==='completedMatches'?t('noForfeit'):null,value:r=>r[key],render:r=>key==='victoryPoints'?`<b class="positive">${num(r[key],2)}</b>`:num(r[key])}))];
+    ...keys.map(key=>({key,label:t(key),hint:key==='completedMatches'?t('noForfeit'):null,value:r=>r[key],render:r=>key==='victoryPoints'||key==='completedMatches'?`<b class="positive">${num(r[key],key==='victoryPoints'?2:0)}</b>`:key==='normalWins'&&mode==='victory'?winsWithHistory(r,{lang,asOf}):num(r[key])}))];
   return renderTable(id,columns,data,{params,lang,defaultKey:mode==='activity'?'completedMatches':'victoryPoints'});
 }
 function popularityTable(s){
@@ -148,7 +149,7 @@ function ratingLeaders(s){
   if(mode==='maps')return heading+popularityTable(s);
   const eligible=rows=>rankParticipants(rows.filter(p=>p.isBot===bot&&(mode!=='activity'||p.completedMatches>0)&&(mode!=='victory'||p.normalWins>0)),mode);
   const rows=eligible(s.players),id=bot?'rating_bots':'rating_'+mode;
-  const table=mode==='average'?rankTable(rows,false,id):victoryTable(rows,id,mode);
+  const table=mode==='average'?rankTable(rows,false,id):victoryTable(rows,id,mode,s.asOf);
   const note=mode==='victory'?ratingExplanation(false,true):mode==='average'?ratingExplanation(bot)+'<br>'+t('ratingNote'):'';
   return heading+table+(mode==='victory'?unscoredWarning(rows):'')+(!rows.length?`<div class="empty">${mode==='victory'?(lang==='ru'?'В выбранных матчах нет побед человека.':'No human wins in the selected matches.'):mode==='activity'?(lang==='ru'?'Нет завершённых матчей без forfeit.':'No completed matches without forfeits.'):t('empty')}</div>`:'')+`<p class="footnote">${note}</p><div class="map-leaders">${s.byMap.map(m=>{
     const leaders=eligible(m.players).slice(0,3);if(!leaders.length)return '';

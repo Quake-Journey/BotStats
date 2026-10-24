@@ -124,3 +124,19 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 .primary-filters .filters{margin-top:10px}
 @media(max-width:640px){.primary-filters summary{font-size:14px}}
 @media(max-width:640px){.chart{height:140px}.chart text{font-size:26px}}
+
+/* Emphasize the sortable win count above the compact, display-only recency. */
+.wins-info{display:inline-grid;grid-template-columns:max-content;align-items:center;justify-content:center;gap:2px;max-width:100%;vertical-align:middle}
+.wins-value{font-size:inherit;font-weight:700;line-height:1.45;font-variant-numeric:tabular-nums;color:var(--good)}
+.wins-history{display:grid;gap:0;font-size:11px;line-height:13px;font-variant-numeric:tabular-nums;text-align:center}
+.wins-history-line{white-space:nowrap}
+.wins-history-label{color:var(--muted)}
+.wins-history-value{color:var(--text)}
+@media(min-width:1400px){.data-table[data-table=rating_victory] td:nth-child(3){padding-block:1px}}
+@media(min-width:801px) and (max-width:1399px){.data-table[data-table=rating_victory] td:nth-child(3){padding-block:3px;gap:2px}}
+@media(max-width:800px){
+  .data-table[data-table=rating_victory] td:nth-child(3){grid-column:2;grid-row:2/span 2;padding:6px;gap:3px;justify-content:center}
+  .data-table[data-table=rating_victory] td:nth-child(4){grid-column:1;grid-row:3}
+  .wins-info{grid-template-columns:1fr}
+}
+@media(max-width:640px){.wins-history-label,.wins-history-value{display:block}.wins-history-line{white-space:normal}.wins-history-value{white-space:nowrap}}

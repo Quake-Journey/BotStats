@@ -43,15 +43,18 @@ export function filters(query,now=new Date()) {
   return q;
 }
 
-export function aggregateMatches(rows,includeMaps=true){
+export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
   const players=new Map();let humanWins=0,botWins=0,finished=0;
   for(const m of rows){
-    const known=resultKnown(m);
+    const known=resultKnown(m),dateMs=Date.parse(m.startedAt),dated=Number.isFinite(dateMs)?new Date(dateMs).toISOString():null;
     if(known){finished++;if(m.winnerIndex!==null){if(m.participants[m.winnerIndex].isBot)botWins++;else humanWins++;}}
     for(let i=0;i<m.participants.length;i++){
       const p=m.participants[i],name=p.isBot?p.profile:p.name,key=`${p.isBot}:${name}`;
       if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0});
       const r=players.get(key);r.matches++;r.score+=p.score;r.opponentScore+=m.participants[1-i].score;
+      // Match dates follow the same start timestamp shown in the match list.
+      if(dated&&(!r.lastGameAt||dated>r.lastGameAt))r.lastGameAt=dated;
+      if(dated&&known&&m.status==='completed'&&m.winnerIndex===i&&(!r.lastWinAt||dated>r.lastWinAt))r.lastWinAt=dated;
       r.completedMatches=(r.completedMatches||0)+Number(m.status==='completed');
       r.victoryPoints=(r.victoryPoints||0)+(victoryPoints(m,i)??0);
       r.unscoredWins=(r.unscoredWins||0)+Number(known&&m.status==='completed'&&m.winnerIndex===i&&victoryPoints(m,i)===null);
@@ -73,10 +76,12 @@ export function aggregateMatches(rows,includeMaps=true){
     killDeathDifference:p.statsMatches?p.kills-p.deaths:null,averageKillDeathDifference:p.statsMatches?(p.kills-p.deaths)/p.statsMatches:null,
     averageDamage:p.statsMatches?p.damage/p.statsMatches:null
   })).sort((a,b)=>b.points-a.points||b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name))};
+  result.asOf=asOf.toISOString();
+  for(const player of result.players){player.lastGameAt??=null;player.lastWinAt??=null;}
   result.ratingPolicy=ratingPolicy;
   result.completedMatches=rows.filter(m=>m.status==='completed').length;
   result.overtimeMatches=rows.filter(m=>m.overtime&&resultKnown(m)).length;
-  if(includeMaps)result.byMap=[...new Set(rows.map(m=>m.map))].sort().map(map=>({map,...aggregateMatches(rows.filter(m=>m.map===map),false)}));
+  if(includeMaps)result.byMap=[...new Set(rows.map(m=>m.map))].sort().map(map=>({map,...aggregateMatches(rows.filter(m=>m.map===map),false,asOf)}));
   return result;
 }
 export function matchSortStages(query) {
@@ -129,7 +134,7 @@ export async function openStore(config) {
     },
     async facets(){const rows=await demos.aggregate([...base(),{$project:{map:1,modVersion:1,participants:1}}]).toArray();const values=fn=>[...new Set(rows.flatMap(fn).filter(x=>x!==null&&x!==undefined))].sort();return {maps:values(x=>[x.map]),versions:values(x=>[x.modVersion]),bots:values(x=>x.participants.filter(p=>p.isBot).map(p=>p.profile)),styles:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.style,...(p.styleTimeline||[]).map(x=>x.value)])),skills:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.skill,...(p.skillTimeline||[]).map(x=>x.value)]))};},
     async summary(query){
-      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{startedAt:1,participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
       return aggregateMatches(rows);
     }
   };

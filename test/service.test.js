@@ -44,6 +44,15 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
     const css=await fetch(apiUrl+'/assets/style.css');assert.equal(css.headers.get('cache-control'),'no-cache');
     assert.equal((await fetch(apiUrl+'/assets/../../local.json')).status,404);
     const summary=await(await fetch(apiUrl+'/api/summary')).json();assert.ok(summary.botWins>=1);assert.ok(summary.players.find(p=>p.name==='pp').losses>=1);
+    const dated=structuredClone(fixture);dated.matches[0].startedAt='2026-06-12T09:00:00Z';
+    await store.save(dated);
+    const recent=await(await fetch(apiUrl+'/api/summary?from=2026-06-12&to=2026-06-12')).json();
+    assert.equal(recent.matches,1);assert.ok(Number.isFinite(Date.parse(recent.asOf)));
+    assert.ok(recent.players.every(p=>p.lastGameAt==='2026-06-12T09:00:00.000Z'),'Summary projection includes match dates');
+    const datedWinner=dated.matches[0].participants[0];
+    assert.equal(recent.players.find(p=>p.name===(datedWinner.isBot?datedWinner.profile:datedWinner.name)).lastWinAt,'2026-06-12T09:00:00.000Z');
+    assert.equal(recent.players.find(p=>p.name==='pp').lastWinAt,null);
+    await store.save(fixture);
     const many=structuredClone(fixture);
     many.matches=Array.from({length:45},(_,i)=>{const m=structuredClone(fixture.matches[0]);m.id=sha+'-0-'+i;m.participants[0].score=i;m.participants[1].name='sorting-probe';return m;});
     await store.save(many);
