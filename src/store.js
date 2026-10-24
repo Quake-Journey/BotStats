@@ -35,6 +35,11 @@ export function filters(query,now=new Date()) {
     q.winnerIndex={$in:[0,1]};
     q.$expr={$and:[{$eq:[{$arrayElemAt:['$participants.isBot',{$ifNull:['$winnerIndex',0]}]},true]},{$gt:[botScore,humanScore]}]};
   }
+  if(query.botDefeats==='1'){
+    q.$and=[...(q.$and||[]),{status:'completed'},{$expr:{$and:[{$eq:[{$arrayElemAt:['$participants.isBot',{$ifNull:['$winnerIndex',0]}]},false]},{$gt:[humanScore,botScore]}]}}];
+    q.ratingExcluded=null;
+    q.winnerIndex={$in:[0,1]};
+  }
   return q;
 }
 
@@ -76,6 +81,7 @@ export function aggregateMatches(rows,includeMaps=true){
 }
 export function matchSortStages(query) {
   const values={date:'$startedAt',map:'$map',match:{$concat:[{$arrayElemAt:['$participants.name',0]},' ',{$arrayElemAt:['$participants.name',1]}]},score:{$arrayElemAt:['$participants.score',0]},status:'$status',duration:{$ifNull:['$durationSeconds','$recordedSeconds']},version:'$modVersion',margin:{$subtract:[botScore,humanScore]},human:{$cond:[botFirst,{$arrayElemAt:['$participants.name',1]},{$arrayElemAt:['$participants.name',0]}]},bot:{$cond:[botFirst,{$arrayElemAt:['$participants.name',0]},{$arrayElemAt:['$participants.name',1]}]},humanScore};
+  if(query.botDefeats==='1')values.margin={$subtract:[humanScore,botScore]};
   const key=Object.hasOwn(values,query.sort_matches)?query.sort_matches:'date';
   const direction=query.dir_matches==='asc'?1:-1;
   return [{$set:{sortValue:values[key],sortTie:key==='score'?{$arrayElemAt:['$participants.score',1]}:'$startedAt'}},{$set:{sortMissing:{$cond:[{$eq:[{$ifNull:['$sortValue',null]},null]},1,0]}}},{$sort:{sortMissing:1,sortValue:direction,sortTie:direction,id:1}}];

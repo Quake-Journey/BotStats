@@ -58,6 +58,20 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
       const smallest=await(await fetch(apiUrl+'/api/matches?q=sorting-probe&humanDefeats=1&sort_matches=margin&dir_matches=asc')).json();assert.equal(smallest.items[0].participants[0].score,5);
       const cannot=await(await fetch(apiUrl+'/api/matches?q=sorting-probe&humanDefeats=1&status=interrupted')).json();assert.equal(cannot.total,0);
       assert.equal(defeats.items[0].rating.difficulty.factor,1);
+      const botLosses=structuredClone(fixture);
+      botLosses.matches=Array.from({length:30},(_,i)=>{
+        const m=game(i,{human:'Bot defeat probe',hs:i+1,bs:-1});m.id=sha+'-0-'+i;
+        if(i%2){m.participants.reverse();m.winnerIndex=1;}
+        return m;
+      });
+      botLosses.matches.push(...[{status:'forfeit',winnerIndex:1},{status:'interrupted'},{hs:1,bs:1},{winnerIndex:1},{ratingExcluded:'opponent_changed'}].map((o,i)=>({...game(40+i,{human:'Bot defeat probe',hs:99,bs:0,...o}),id:sha+'-0-'+(40+i)})));
+      await store.save(botLosses);
+      const lossUrl=apiUrl+'/api/matches?q=Bot%20defeat%20probe&botDefeats=1&sort_matches=margin';
+      const biggest=await(await fetch(lossUrl)).json();assert.equal(biggest.total,30);assert.equal(biggest.items[0].participants.find(p=>!p.isBot).score,30);
+      const next=await(await fetch(lossUrl+'&page=2')).json();assert.equal(next.items[0].participants.find(p=>!p.isBot).score,10,'Global sort before pagination');
+      const smallestBot=await(await fetch(lossUrl+'&dir_matches=asc')).json();assert.equal(smallestBot.items[0].participants.find(p=>!p.isBot).score,1);
+      assert.equal((await(await fetch(lossUrl+'&status=forfeit')).json()).total,0);
+      assert.equal((await(await fetch(lossUrl+'&humanDefeats=1')).json()).total,0);
     }finally{await store.save(fixture);}
     const awards=structuredClone(fixture);
     awards.matches=Array.from({length:100},(_,i)=>({...game(i,{human:'Award API probe',hs:i+20}),id:sha+'-0-'+i}));

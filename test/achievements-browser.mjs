@@ -11,7 +11,7 @@ const human=real.items[0].holders[0].name;
 const rows=collection().concat(Array.from({length:260},(_,i)=>game(1000+i,{hs:0,bs:10})));
 rows.forEach(m=>{if(m.participants[0].name==='Tester')m.participants[0].name=human;});
 const index=computeAchievements(rows),catalog=publicAchievements(index);
-assert.equal(catalog.items.filter(a=>a.holders.some(p=>p.name===human)).length,17);
+assert.equal(catalog.items.filter(a=>a.holders.some(p=>p.name===human)).length,24);
 const results=[];
 async function ready(page){await page.locator('#content[aria-busy="false"]').waitFor();assert.equal(await page.locator('.error').count(),0);}
 async function overflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' horizontal overflow');}
@@ -42,10 +42,10 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit}).filte
       await page.route('**/api/achievements',r=>r.fulfill({json:catalog}));
       await page.route('**/api/achievements/*',r=>{const u=new URL(r.request().url()),value=achievementDetail(index,u.pathname.split('/').at(-1),Object.fromEntries(u.searchParams));return r.fulfill({status:value?200:404,json:value||{error:'Not found'}});});
       await page.goto(base+'?view=achievements&'+suffix);await ready(page);
-      assert.equal(await page.locator('[data-table=achievements] tbody tr').count(),17);
+      assert.equal(await page.locator('[data-table=achievements] tbody tr').count(),24);
       await page.locator('.achievement-art img').evaluateAll(async imgs=>{imgs.forEach(i=>i.loading='eager');await Promise.all(imgs.map(i=>i.decode()));});
       assert.ok(await page.locator('.achievement-art img').evaluateAll(imgs=>imgs.every(i=>i.naturalWidth===384)));
-      await overflow(page,'17 awards');
+      await overflow(page,'24 awards');
       await page.locator('[data-sort-table=achievements][data-sort-key=name]').click();await ready(page);
       assert.equal(new URL(page.url()).searchParams.get('sort_achievements'),'name');
       await page.locator('#achievement-search').fill(human);await page.waitForFunction(name=>new URLSearchParams(location.search).get('achievementSearch')===name,human);await ready(page);
@@ -56,10 +56,10 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit}).filte
       await page.locator('[data-sort-table=award_evidence][data-sort-key=score]').click();await ready(page);assert.equal(new URL(page.url()).searchParams.get('awardPage'),null);
       await overflow(page,'paginated proof');
       await page.goto(base+'?view=players&profile='+encodeURIComponent(human)+'&kind=human&'+suffix);await ready(page);
-      assert.equal(await page.locator('.profile-achievements .achievement-mini').count(),17);
+      assert.equal(await page.locator('.profile-achievements .achievement-mini').count(),24);
       await page.locator('.profile-achievements img').evaluateAll(imgs=>Promise.all(imgs.map(async i=>{i.loading='eager';await i.decode();})));
-      await overflow(page,'17 profile badges');
-      if(engineName==='chromium'&&lang==='ru'&&theme==='dark')await page.screenshot({path:`${dir}/profile17-${width}.png`});
+      await overflow(page,'24 profile badges');
+      if(engineName==='chromium'&&lang==='ru'&&theme==='dark')await page.screenshot({path:`${dir}/profile24-${width}.png`});
       for(const view of ['rating','matches','players','defeats','bots']){
         await page.goto(base+'?view='+view+'&'+suffix);await ready(page);await overflow(page,view);
         assert.equal(await page.locator('a a').count(),0,'No nested clickable badges');

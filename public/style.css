@@ -74,7 +74,7 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 @media(max-width:640px){.rating-context{padding:14px}.rating-context a{margin-left:0}.difficulty-examples{grid-template-columns:1fr}.rule-points{font-size:20px}}
 
 .defeat-intro{padding:18px 4px}.defeat-intro h2{font-size:24px;margin:0 0 10px}.defeat-intro p{font-size:16px;line-height:1.7;color:var(--muted);margin:0}
-@media(min-width:1400px){.data-table[data-table=defeats] th:nth-child(2){width:18%}.data-table[data-table=defeats] th:last-child{width:16%}}
+@media(min-width:1400px){:is(.data-table[data-table=defeats],.data-table[data-table=botdefeats]) th:nth-child(2){width:18%}:is(.data-table[data-table=defeats],.data-table[data-table=botdefeats]) th:last-child{width:16%}}
 
 .guide-section{scroll-margin-top:16px}
 

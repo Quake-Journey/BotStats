@@ -13,7 +13,7 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
     const page=await browser.newPage({viewport:{width,height:1050},colorScheme:'dark'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
     const query=`view=dynamics&lang=${lang}&theme=${theme}`;
     await page.goto(base+'?'+query);await ready(page);await page.waitForSelector('.trend-chart svg');
-    assert.deepEqual((await page.locator('[data-view]').evaluateAll(es=>es.map(e=>e.dataset.view))).slice(-3),['defeats','dynamics','achievements']);
+    assert.deepEqual((await page.locator('[data-view]').evaluateAll(es=>es.map(e=>e.dataset.view))).slice(-4),['defeats','botdefeats','dynamics','achievements']);
     assert.equal(await page.locator('.trend-target').count(),actual.points.length);assert.equal(await page.locator('.trend-line').count(),2);
     assert.equal(await page.locator('#f-skill').count(),0);assert.equal(await page.locator('#f-status').count(),0);
     assert.equal(await page.locator('.trend-summary .trend-bot').innerText(),String(actual.totals.botWins));assert.equal(await page.locator('.trend-summary .trend-human').innerText(),String(actual.totals.humanWins));

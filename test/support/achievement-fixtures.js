@@ -19,5 +19,16 @@ export function collection(){
   add({hs:0,bs:20});add();
   add({map:'ztn2dm3'}).participants[0].stats.control=[{name:'Mega Health',pickups:3}];
   for(let j=0;j<10;j++)add({human:'Training dummy',hs:0,bs:10});
+  rows.push(...newAwards(i+1));
   return rows;
+}
+export function newAwards(start=200){
+  const negative=game(start,{hs:10,bs:-1});
+  const god=game(start+1,{bot:'GOD-X',skill:250,hs:25,bs:10});
+  const old=game(start+2,{hs:10,bs:1});old.participants[0].stats.weapons=[{name:'Railgun',hits:0,shots:0}];
+  const surgeon=game(start+3,{hs:12,bs:5});surgeon.participants[0].stats.weapons=[{name:'Railgun',hits:8,shots:16}];
+  const rail=game(start+4,{hs:15,bs:5});rail.participants[0].stats.pickups=[{name:'Railgun',count:10}];rail.participants[1].stats.weapons=[{name:'Railgun',pickups:0}];
+  const space=game(start+5,{hs:15,bs:5});space.participants[0].stats.telefrags=3;
+  const minute=game(start+6,{hs:11,bs:10,scoreHistory:[{timeMs:0,scores:[0,0]},{timeMs:530000,scores:[5,10]},{timeMs:541000,scores:[6,10]},{timeMs:600000,scores:[11,10]}]});
+  return [negative,god,old,surgeon,rail,space,minute];
 }

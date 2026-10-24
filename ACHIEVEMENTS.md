@@ -6,6 +6,27 @@
 Every award links to its rules, holders and qualifying matches. RU/EN, theme,
 search, sorting, selected holder and evidence pagination are shareable through the URL.
 
+Всего 24 достижения. Семь новых наград используют подтверждённую победу человека,
+полное игровое время и неизменный скилл бота. Старые 17 условий сохранены.
+
+| Новая награда | Условия |
+| --- | --- |
+| Отрицательный интеллект | Ровно 200 скилла; десятиминутный матч без овертайма; человек набрал 10+ фрагов, итоговый счёт бота ниже нуля. |
+| Убийца богов | GOD-X 250; победа с перевесом минимум 15 фрагов. |
+| Олдскул | 200+; 10+ фрагов у человека и явно подтверждённые 0 выстрелов из рейлгана. |
+| Хирург | 200+; минимум 15 выстрелов рейлганом и точность минимум 50% по неокруглённым попаданиям/выстрелам. |
+| Рельса приватизирована | 200+, q2duel5; минимум 10 подборов рейлгана человеком и явно подтверждённые 0 подборов ботом. Выпавшее оружие учитывается. |
+| Личное пространство | 200+; минимум 3 телефрага по итоговой статистике. |
+| Последняя минута | 200+; за минуту до конца основного времени отставание минимум 5 фрагов, затем победа без овертайма. |
+
+Для всех семи исключены forfeit, незавершённые/неполные записи и замена бота.
+Кроме «Отрицательного интеллекта», длительность — от 10 минут. Смена скилла
+с последующим возвратом также исключает награду. У оружейных наград и телефрагов
+нужна полная итоговая статистика; отсутствующие счётчики не превращаются в нули.
+Старый процент точности без числа выстрелов не доказывает условие «Хирурга».
+«Последняя минута» берёт последнее известное значение счёта на отметке до конца
+основного времени минус 60 секунд, а не максимальное отставание за весь матч.
+
 ## Правила подсчёта / Counting policy
 
 - Обычные условия используют завершённые матчи без forfeit. «Исследователь»
@@ -44,8 +65,8 @@ Locked titles and conditions are not sent in the catalog API or client modules.
   concurrent calculations, expires after 30 seconds and is invalidated immediately
   after an accepted import. No MongoDB migration or reimport is required.
 - Existing parser, match results and rating formulas are unchanged.
-- Artwork: seventeen original transparent emblems, delivered as 384px WebP plus
-  80px miniatures under `public/achievements/`; total about 1 MB. No external image
+- Artwork: twenty-four original transparent emblems, delivered as 384px WebP plus
+  80px miniatures under `public/achievements/`. No external image
   host is needed. Asset snapshots include the new CSS, modules and images.
 
 ## Verification
@@ -60,3 +81,8 @@ RU/EN and light/dark/system themes. Expanded and empty catalogs are intercepted
 only inside browser test contexts; they are never inserted into the database.
 Screenshots/results use `BOTSTATS_TEST_DIR`, and browser binaries can be selected
 through `PLAYWRIGHT_BROWSERS_PATH`.
+
+`node test/bot-defeats-browser.mjs` checks the adjacent Bot Defeats ranking in
+Chromium, Firefox and WebKit at desktop/mobile widths, RU/EN and light/dark themes:
+human-first scores, sortable columns, shared filter URLs, reloads, forfeit exclusion
+and the existing Human Defeats tab.
