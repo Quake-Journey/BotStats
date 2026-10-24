@@ -4,16 +4,16 @@ const date=(s,lang,options={day:'numeric',month:'short',year:'numeric'})=>s?new 
 const range=(p,lang)=>p.from===p.to?date(p.from,lang):date(p.from,lang)+' — '+date(p.to,lang);
 const num=(n,lang)=>new Intl.NumberFormat(lang,{maximumFractionDigits:1}).format(n);
 const units={ru:{day:'По дням',week:'По неделям',month:'По месяцам',year:'По годам'},en:{day:'Daily',week:'Weekly',month:'Monthly',year:'Yearly'}};
-function matchURL(p,url){return url({view:'matches',from:p.from,to:p.to,period:'custom',status:null,skill:null,overtime:null,match:null,profile:null,kind:null,page:null,trendPoint:null});}
+function matchLink(p,link){return link({view:'matches',from:p.from,to:p.to,period:'custom',status:null,skill:null,overtime:null,match:null,profile:null,kind:null,page:null,trendPoint:null});}
 function notes(data,ru){return `<p class="trend-note">${ru?'Одна победа — один матч, без коэффициентов скилла. Forfeit всегда учитывается как поражение человека и победа бота, независимо от счёта перед выходом. Даты — по началу матча, МСК. Ничьи и записи без подтверждённого результата не входят в кривые побед.':'One win means one match, without skill weighting. A forfeit always counts as a human loss and a bot win, regardless of the score at departure. Dates follow match start in Moscow time. Draws and recordings without a confirmed result are excluded from the win curves.'}${data.excluded.undated?` ${ru?'Матчей с результатом, но без даты:':'Results without a known date:'} ${data.excluded.undated}.`:''}</p>`;}
 
-export function dynamicsPage(data,{lang,url,params}){
+export function dynamicsPage(data,{lang,link,params}){
   const ru=lang==='ru',s=data.totals;
   const header=`<div class="trend-heading"><h1>${ru?'Динамика':'Trends'}</h1><p>${ru?'Как меняется соотношение побед людей и ботов за выбранный период. Все скиллы, включая матчи с forfeit.':'How human and bot wins change over the selected period. All skills, including forfeits.'}</p></div>`;
   if(data.invalidRange)return header+`<p class="empty">${ru?'Дата начала должна быть не позже даты окончания.':'The start date must not be after the end date.'}</p>`;
   const summary=`<div class="trend-summary"><div class="trend-stat"><span>${ru?'Победы ботов':'Bot wins'}</span><strong class="trend-bot">${num(s.botWins,lang)}</strong><small>${ru?'Из них по forfeit':'Including forfeits'}: ${num(s.botForfeitWins,lang)}</small></div><div class="trend-stat"><span>${ru?'Победы людей':'Human wins'}</span><strong class="trend-human">${num(s.humanWins,lang)}</strong><small>${ru?'Включая победы в овертайме':'Including overtime wins'}</small></div><div class="trend-stat"><span>${ru?'Доля побед ботов':'Bot win share'}</span><strong>${s.botWinPercent===null?'—':num(s.botWinPercent,lang)+'%'}</strong><small>${ru?'Матчей с победителем':'Matches with a winner'}: ${num(s.matches,lang)}</small></div></div>`;
   if(!s.matches)return header+summary+`<div class="empty">${ru?'За выбранный период нет матчей с подтверждённой победой.':'No confirmed wins in the selected period.'}</div>`+notes(data,ru);
-  const columns=[{key:'date',label:ru?'Период · МСК':'Period · MSK',text:true,value:p=>p.key,render:p=>`<a href="${esc(matchURL(p,url))}">${esc(range(p,lang))} ↗</a>`},
+  const columns=[{key:'date',label:ru?'Период · МСК':'Period · MSK',text:true,value:p=>p.key,render:p=>`<a ${matchLink(p,link)}>${esc(range(p,lang))} ↗</a>`},
     {key:'bot',label:ru?'Победы ботов':'Bot wins',value:p=>p.botWins,render:p=>`<b class="trend-bot">${p.botWins}</b>`},
     {key:'human',label:ru?'Победы людей':'Human wins',value:p=>p.humanWins,render:p=>`<b class="trend-human">${p.humanWins}</b>`},
     {key:'forfeits',label:ru?'Из них forfeit':'Of which forfeits',value:p=>p.forfeits},
@@ -42,12 +42,12 @@ function svg(data,lang,width){
   return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="group" aria-label="${lang==='ru'?'Победы ботов и людей по времени':'Bot and human wins over time'}">${lines.join('')}${paths}${targets}</svg>`;
 }
 
-function pointDetails(p,lang,url,i,last){
+function pointDetails(p,lang,link,i,last){
   const ru=lang==='ru';
-  return `<div class="trend-selection"><button type="button" data-trend-step="-1" ${i===0?'disabled':''} aria-label="${ru?'Предыдущий период':'Previous period'}">←</button><strong>${esc(range(p,lang))}</strong><button type="button" data-trend-step="1" ${i===last?'disabled':''} aria-label="${ru?'Следующий период':'Next period'}">→</button></div><div class="trend-values"><span><i class="trend-swatch bot"></i>${ru?'Победы ботов':'Bot wins'} <b>${p.botWins}</b></span><span><i class="trend-swatch human"></i>${ru?'Победы людей':'Human wins'} <b>${p.humanWins}</b></span><span>${ru?'Из них forfeit':'Of which forfeits'} <b>${p.forfeits}</b></span><a class="button-link" href="${esc(matchURL(p,url))}">${ru?'Матчи за этот период':'Matches in this period'} →</a></div>`;
+  return `<div class="trend-selection"><button type="button" data-trend-step="-1" ${i===0?'disabled':''} aria-label="${ru?'Предыдущий период':'Previous period'}">←</button><strong>${esc(range(p,lang))}</strong><button type="button" data-trend-step="1" ${i===last?'disabled':''} aria-label="${ru?'Следующий период':'Next period'}">→</button></div><div class="trend-values"><span><i class="trend-swatch bot"></i>${ru?'Победы ботов':'Bot wins'} <b>${p.botWins}</b></span><span><i class="trend-swatch human"></i>${ru?'Победы людей':'Human wins'} <b>${p.humanWins}</b></span><span>${ru?'Из них forfeit':'Of which forfeits'} <b>${p.forfeits}</b></span><a class="button-link" ${matchLink(p,link)}>${ru?'Матчи за этот период':'Matches in this period'} →</a></div>`;
 }
 
-export function mountDynamics(root,data,{lang,url,params,onSelect,onTable}){
+export function mountDynamics(root,data,{lang,link,params,onSelect,onTable}){
   const chart=root.querySelector('#trend-chart'),detail=root.querySelector('#trend-detail'),table=root.querySelector('.trend-table');
   if(!chart)return ()=>{};
   let chosen=data.points.findIndex(p=>p.key===params.get('trendPoint'));
@@ -58,7 +58,7 @@ export function mountDynamics(root,data,{lang,url,params,onSelect,onTable}){
     shown=Math.max(0,Math.min(data.points.length-1,index));
     if(commit){chosen=shown;onSelect(data.points[chosen].key);}
     chart.querySelectorAll('[data-trend-index]').forEach((el,i)=>{el.classList.toggle('selected',i===shown);el.setAttribute('tabindex',i===chosen?'0':'-1');});
-    detail.innerHTML=pointDetails(data.points[shown],lang,url,shown,data.points.length-1);
+    detail.innerHTML=pointDetails(data.points[shown],lang,link,shown,data.points.length-1);
   }
   function draw(){const width=Math.max(260,Math.floor(chart.clientWidth));if(width===lastWidth)return;lastWidth=width;chart.innerHTML=svg(data,lang,width);show(shown);}
   const observer=new ResizeObserver(draw);observer.observe(chart);draw();

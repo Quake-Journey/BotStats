@@ -6,11 +6,11 @@ const rule=(label,value)=>`<li><span>${label}</span><strong class="rule-points $
 const formula=(label,value,description)=>`<div class="formula"><h3>${label}</h3><p class="formula-value">${value}</p><p>${description}</p></div>`;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-export function aboutPage(lang,backURL){
+export function aboutPage(lang,backLink){
   const ru=lang==='ru',humanExample=3*h.win+2*h.loss+h.forfeitLoss,botExample=2*b.win+b.loss+b.forfeitLeading+b.forfeitNotLeading;
   const links=ru?['Усреднённый рейтинг и рейтинг ботов','Как учитывается скилл','Forfeit и прерванные игры','Средние показатели','Овертайм','Карты, периоды и фильтры','Места и участники']:['Average rating and bot rating','How skill is weighted','Forfeits and interruptions','Averages','Overtime','Maps, periods and filters','Ranking and participants'];
   const ids=['points','difficulty','forfeit','averages','overtime','filters','participants'];
-  return `<a class="back" href="${esc(backURL)}">${ru?'← К статистике':'← Back to statistics'}</a>
+  return `<a class="back" ${backLink}>${ru?'← К статистике':'← Back to statistics'}</a>
   <article class="rating-guide">
     <div class="detail-top"><div><div class="eyebrow">Q2PRO-X · BotStats</div><h1>${ru?'О рейтинге':'About the rating'}</h1>
     <p class="guide-lead">${ru?'Основной рейтинг — победный: он накапливает очки за победы над ботами. Рядом доступны прежний усреднённый рейтинг, рейтинг по числу завершённых матчей без forfeit и популярность карт. Рейтинг ботов ведётся отдельно.':'Victory rating is the main ranking: it accumulates points for wins against bots. You can also view the previous Average rating, completed-match rankings and map popularity. Bots have a separate leaderboard.'}</p></div></div>
@@ -94,7 +94,7 @@ export function aboutPage(lang,backURL){
       <p>${ru?'Люди объединяются по нику из записи. Боты — по профилю, например David-X, независимо от указанного в имени скилла. Чтобы сравнить конкретный скилл, стиль или версию, используй фильтры. Рейтинги людей и ботов не смешиваются: их очки имеют разную стоимость.':'Humans are grouped by their recorded nickname. Bots are grouped by profile, such as David-X, regardless of the skill suffix in their name. Use filters to compare a particular skill, style or version. Human and bot leaderboards remain separate because their point values differ.'}</p>
       <p>${ru?'Это статистика записанных игр, не защищённый режим Competition. Ник не подтверждает личность; смена ника создаёт отдельную строку, а одинаковый ник объединяет результаты. В расчёт попадают только загруженные записи человека с ботом. Повторная загрузка того же файла MVD не создаёт второй матч.':'This is recorded-match statistics, not the authenticated Competition mode. A nickname does not verify identity: changing it creates a separate row, while identical nicknames share a row. Only uploaded human-versus-bot recordings count. Uploading the same MVD file again does not add a duplicate match.'}</p>
     </section>
-    <a class="guide-return" href="${esc(backURL)}">${ru?'Перейти к статистике →':'Open the statistics →'}</a>
+    <a class="guide-return" ${backLink}>${ru?'Перейти к статистике →':'Open the statistics →'}</a>
   </article>`;
 }
 
