@@ -3,7 +3,7 @@ import {botDifficulty,resultKnown} from './rating.js';
 // A conservative performance estimate against fixed bot difficulty references.
 // Not a sum of rewards and not Elo (opponent ratings never depend on upload order).
 export const performancePolicy=Object.freeze({
-  version:'human-performance-v1',reference:1000,scale:400/Math.LN10,
+  version:'human-performance-v2',maximum:100,
   priorDeviation:2,confidenceZ:1.2815515655446004,minimumGames:10,
   resultWeight:.75,minimumSeconds:120,fullWeightSeconds:600
 });
@@ -38,8 +38,10 @@ export function humanPerformance(matches){
   }
   const deviation=1/Math.sqrt(evaluate(theta).information);
   const equivalentGames=evidence.reduce((n,e)=>n+e.weight,0),wins=evidence.filter(e=>e.outcome===1).length;
-  return {value:Math.max(0,p.reference+p.scale*(theta-p.confidenceZ*deviation)),
-    estimate:p.reference+p.scale*theta,games:evidence.length,
+  // A bounded index, not accumulated reward points or a measured win percentage.
+  // Only the display scale changes; evidence, fitting and uncertainty stay the same.
+  return {value:p.maximum*logistic(theta-p.confidenceZ*deviation),
+    estimate:p.maximum*logistic(theta),games:evidence.length,
     equivalentGames,provisional:evidence.length<p.minimumGames,wins,losses:evidence.filter(e=>e.outcome===0).length,
     draws:evidence.filter(e=>e.outcome===.5).length,winRate:wins/evidence.length*100,
     averageFragDifference:evidence.reduce((n,e)=>n+e.fragDifference,0)/evidence.length,

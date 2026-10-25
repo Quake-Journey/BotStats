@@ -95,3 +95,37 @@ test('performance uses duration-weighted skill; has no nickname, upload order or
   const humanBot=match('X');Object.assign(humanBot.participants[1],{profile:'Human-X',name:'Human-X[100]',skill:100});
   assert.equal(humanPerformance([humanBot]).value,humanPerformance([match('X')]).value);
 });
+
+test('performance is a bounded strength index, independent of win percentage and cumulative rewards',()=>{
+  for(const count of [1,10,100])for(const skill of [1,50,200])for(const won of [true,false]){
+    const rows=Array.from({length:count},()=>{
+      const m=match('Player','completed',won?0:1);
+      Object.assign(m.participants[1],{name:`David-X[${skill}]`,skill,score:won?0:50});
+      m.participants[0].score=won?50:0;return m;
+    });
+    const p=humanPerformance(rows);
+    assert.ok(p.value>0&&p.value<100);assert.ok(p.estimate>0&&p.estimate<100);
+    assert.ok(p.value<p.estimate,'Conservative estimate stays below central estimate');
+    assert.notEqual(p.value,p.winRate,'Index is not an observed win percentage');
+    assert.equal(p.provisional,count<10);
+  }
+  const wins=human(Array.from({length:20},()=>match('Player')));
+  assert.equal(wins.victoryPoints,200);assert.ok(wins.performance.value<100);
+});
+
+test('balanced identical draws keep the central index at 50; missing evidence remains unknown',()=>{
+  const draws=Array.from({length:20},()=>{const m=match('Player','completed',null);m.participants[1].score=5;return m;});
+  const p=humanPerformance(draws);assert.equal(p.estimate,50);assert.ok(p.value>0&&p.value<50);
+  for(const rows of [[],[match('Player','forfeit',1)],[{...match('Player'),durationSeconds:119}]]){
+    const p=humanPerformance(rows);assert.equal(p.value,null);assert.equal(p.estimate,null);
+  }
+});
+
+test('rating guides explain the 0–100 index rather than a win percentage or reward average',()=>{
+  for(const lang of ['ru','en']){
+    const html=aboutPage(lang,'href="/botstats/"');
+    assert.ok(html.includes(lang==='ru'?'индекс силы игры от 0 до 100':'playing-strength index from 0 to 100'));
+    assert.ok(html.includes(lang==='ru'?'Это не процент побед':'It is not a win percentage'));
+    assert.ok(html.includes('100 × sigmoid('));assert.ok(!html.includes('max(0, 1000 +'));
+  }
+});
