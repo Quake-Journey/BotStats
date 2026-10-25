@@ -55,6 +55,12 @@ skills and forfeits; map, player, bot, style, version and date filters apply.
 both win series, forfeit counts and bot win share. The chart supports pointer,
 touch and keyboard selection, with a sortable data table and RU/EN labels.
 
+«Игроки» — отдельный список всех людей в выбранных матчах, включая участников
+без побед. Сортировка по алфавиту, переходы по нику в профиль
+и по дате в последний матч. Поиск здесь только по нику человека; период,
+карта, сортировка и прочие фильтры сохраняются в URL. Рейтинговых мест и
+переключателей рейтинга в списке нет.
+
 ## Запуск / Quick start
 
 Node.js 22.17+ and MongoDB are required on the website host. The importer needs

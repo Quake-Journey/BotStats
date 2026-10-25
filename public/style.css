@@ -147,3 +147,5 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 /* Overview stays expanded on the main page and desktop. Mobile subpages use native disclosures. */
 .overview-fold{min-width:0}.overview-fold>summary{display:none}.overview-fold>.kpis,.overview-fold>.hero-card{height:100%}
 @media(max-width:800px){.overview-secondary{gap:8px;margin:14px 0}.overview-secondary .overview-fold{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0 14px}.overview-secondary .overview-fold>summary{display:list-item;cursor:pointer;padding:12px 0;font-size:15px;font-weight:650;color:var(--accent);min-height:44px}.overview-secondary .overview-fold[open]>.kpis,.overview-secondary .overview-fold[open]>.hero-card{height:auto;margin-bottom:14px}}
+
+.player-directory-name{font-size:18px;font-weight:750;color:var(--accent)}

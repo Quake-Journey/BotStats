@@ -29,6 +29,7 @@ export function filters(query,now=new Date()) {
   else if(query.skill && /^\d+$/.test(query.skill))bot['skillTimeline.value']=+query.skill;
   if(Object.keys(bot).length>1)q.participants={$elemMatch:bot};
   if(query.identity){const identity={isBot:query.kind==='bot'};identity[query.kind==='bot'?'profile':'name']=String(query.identity).slice(0,128);if(q.participants)q.$and=[{participants:q.participants},{participants:{$elemMatch:identity}}];else q.participants={$elemMatch:identity};if(q.$and)delete q.participants;}
+  if(query.q&&query.playerSearch==='1')q.$and=[...(q.$and||[]),{participants:{$elemMatch:{isBot:false,name:{$regex:escapeRegex(String(query.q).slice(0,80)),$options:'i'}}}}];
   if(query.from && /^\d{4}-\d\d-\d\d$/.test(query.from)&&Number.isFinite(Date.parse(query.from+'T00:00:00+03:00')))q.startedAt={$gte:new Date(query.from+'T00:00:00+03:00').toISOString()};
   if(query.to && /^\d{4}-\d\d-\d\d$/.test(query.to)&&Number.isFinite(Date.parse(query.to+'T23:59:59.999+03:00')))q.startedAt={...q.startedAt,$lte:new Date(query.to+'T23:59:59.999+03:00').toISOString()};
   if(query.humanDefeats==='1'){
@@ -56,7 +57,9 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
       if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0});
       const r=players.get(key);r.matches++;r.score+=p.score;r.opponentScore+=m.participants[1-i].score;
       // Match dates follow the same start timestamp shown in the match list.
-      if(dated&&(!r.lastGameAt||dated>r.lastGameAt))r.lastGameAt=dated;
+      if(dated&&(!r.lastGameAt||dated>r.lastGameAt||(dated===r.lastGameAt&&String(m.id||'')>String(r.lastGameMatchId||'')))){
+        r.lastGameAt=dated;r.lastGameMatchId=m.id||null;
+      }
       if(dated&&known&&m.status==='completed'&&m.winnerIndex===i&&(!r.lastWinAt||dated>r.lastWinAt))r.lastWinAt=dated;
       r.completedMatches=(r.completedMatches||0)+Number(m.status==='completed');
       r.victoryPoints=(r.victoryPoints||0)+(victoryPoints(m,i)??0);
@@ -87,7 +90,7 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
     averageDamage:p.statsMatches?p.damage/p.statsMatches:null
   })).sort((a,b)=>b.points-a.points||b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name))};
   result.asOf=asOf.toISOString();
-  for(const player of result.players){player.lastGameAt??=null;player.lastWinAt??=null;
+  for(const player of result.players){player.lastGameAt??=null;player.lastGameMatchId??=null;player.lastWinAt??=null;
     if(!player.isBot)player.performance=humanPerformance(humanGames.get(`false:${player.name}`)||[]);
   }
   result.ratingPolicy=ratingPolicy;
@@ -150,7 +153,7 @@ export async function openStore(config) {
     },
     async facets(){const rows=await demos.aggregate([...base(),{$project:{map:1,modVersion:1,participants:1}}]).toArray();const values=fn=>[...new Set(rows.flatMap(fn).filter(x=>x!==null&&x!==undefined))].sort();return {maps:values(x=>[x.map]),versions:values(x=>[x.modVersion]),bots:values(x=>x.participants.filter(p=>p.isBot).map(p=>p.profile)),styles:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.style,...(p.styleTimeline||[]).map(x=>x.value)])),skills:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.skill,...(p.skillTimeline||[]).map(x=>x.value)]))};},
     async summary(query){
-      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{startedAt:1,participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
       return aggregateMatches(rows);
     }
   };
