@@ -1,9 +1,9 @@
 // One policy for both API aggregation and the browser's per-match explanation.
 export const ratingPolicy = Object.freeze({
-  version: 'bot-win-duration-skill-v5',
+  version: 'human-performance-forfeit-share-v7',
   skill: Object.freeze({standardReference:200, humanReference:100, inverseWeightCap:4}),
   duration: Object.freeze({minimumSeconds:120, maximumSeconds:600, minimumPoints:1, maximumPoints:10}),
-  human: Object.freeze({win:10, loss:-1, forfeitWin:0, forfeitLoss:-5, draw:0}),
+  human: Object.freeze({win:10, loss:-1, forfeitWin:0, forfeitLoss:0, draw:0}),
   bot: Object.freeze({win:10, minimumWin:0.1, forfeitWin:5, minimumForfeitWin:0.05, loss:-1, minimumLossFactor:0.01, draw:0})
 });
 
@@ -118,9 +118,13 @@ export function victoryPoints(match,index){
 }
 
 export function rankParticipants(rows,mode='victory'){
-  const key=mode==='activity'?'completedMatches':mode==='average'?'points':'victoryPoints';
-  return [...rows].sort((a,b)=>b[key]-a[key]||
-    (mode==='average'?b.wins-a.wins||b.matches-a.matches:
+  const value=r=>mode==='activity'?r.completedMatches:mode==='forfeits'?r.forfeitRate:
+    mode==='average'?(r.isBot?r.points:r.performance?.value):r.victoryPoints;
+  return [...rows].sort((a,b)=>Number(value(a)==null)-Number(value(b)==null)||
+    (mode==='average'&&!a.isBot?Number(a.performance?.provisional)-Number(b.performance?.provisional):0)||
+    (value(b)??0)-(value(a)??0)||
+    (mode==='forfeits'?b.forfeits-a.forfeits||b.finished-a.finished:
+      mode==='average'?(a.isBot?b.wins-a.wins||b.matches-a.matches:b.normalWins-a.normalWins||b.ratedMatches-a.ratedMatches):
       mode==='activity'?0:b.normalWins-a.normalWins)||a.name.localeCompare(b.name,'en'));
 }
 

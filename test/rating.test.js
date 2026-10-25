@@ -5,14 +5,14 @@ import {matchPoints,victoryPoints,victoryDuration,botDifficulty,rankParticipants
 function game(map,status,winnerIndex,score=[5,3]){return {map,status,winnerIndex,statsComplete:true,durationSeconds:600,participants:[{name:'q',isBot:false,score:score[0],stats:{kills:score[0],deaths:score[1],damageDealt:500}},{name:'David-X[200]',profile:'David-X',isBot:true,score:score[1],stats:{kills:score[1],deaths:score[0],damageDealt:400}}]};}
 test('independent human/bot policies; leading forfeiter score and per-map averages',()=>{
   const s=aggregateMatches([game('q2duel5','completed',0),game('q2duel5','completed',1,[2,6]),game('ztn2dm3','forfeit',1,[10,3]),game('ztn2dm3','interrupted',null,[4,1])]);
-  const p=s.players.find(p=>p.name==='q');assert.equal(p.points,4);assert.equal(p.losses,2);assert.equal(p.normalLosses,1);assert.equal(p.forfeits,1);assert.equal(p.matches,4);assert.equal(p.finished,3);assert.equal(p.pointsPerMatch,4/3);assert.equal(p.averageScore,21/4);assert.equal(p.averageFragDifference,2);assert.equal(p.averageDeaths,13/4);
+  const p=s.players.find(p=>p.name==='q');assert.equal(p.points,9);assert.equal(p.losses,2);assert.equal(p.normalLosses,1);assert.equal(p.forfeits,1);assert.equal(p.matches,4);assert.equal(p.finished,3);assert.equal(p.pointsPerMatch,9/2);assert.equal(p.averageScore,21/4);assert.equal(p.averageFragDifference,2);assert.equal(p.averageDeaths,13/4);
   assert.equal(s.byMap.find(m=>m.map==='q2duel5').players.find(p=>p.name==='q').points,9);
-  assert.equal(s.byMap.find(m=>m.map==='ztn2dm3').players.find(p=>p.name==='q').points,-5);
+  assert.equal(s.byMap.find(m=>m.map==='ztn2dm3').players.find(p=>p.name==='q').points,0);
   const b=s.players.find(p=>p.isBot);assert.equal(b.points,14);assert.equal(b.forfeitWins,1);assert.equal(b.normalWins,1);
 });
 test('forfeit bot rewards use the confirmed winner and not the score at surrender',()=>{
   for(const [score,points]of [[[2,8],5],[[8,2],5],[[4,4],5]]){
-    const m=game('q3t2','forfeit',1,score);assert.equal(matchPoints(m,1),points);assert.equal(matchPoints(m,0),-5);
+    const m=game('q3t2','forfeit',1,score);assert.equal(matchPoints(m,1),points);assert.equal(matchPoints(m,0),0);
   }
   assert.equal(matchPoints(game('q3t2','forfeit',0),0),0);
   assert.equal(matchPoints({...game('q3t2','completed',1),ratingExcluded:'opponent_changed'},1),null);
@@ -20,7 +20,7 @@ test('forfeit bot rewards use the confirmed winner and not the score at surrende
 test('overtime wins/losses are separate from forfeits and award ordinary points',()=>{
   const rows=[{...game('q3t2','completed',0,[9,8]),overtime:true},{...game('q3t2','forfeit',1,[9,10]),overtime:true}];
   const s=aggregateMatches(rows),p=s.players.find(p=>!p.isBot),b=s.players.find(p=>p.isBot);
-  assert.equal(s.overtimeMatches,2);assert.equal(p.overtimeWins,1);assert.equal(b.overtimeLosses,1);assert.equal(b.overtimeWins,0);assert.equal(p.overtimeForfeits,1);assert.equal(p.points,5);assert.equal(b.points,4);
+  assert.equal(s.overtimeMatches,2);assert.equal(p.overtimeWins,1);assert.equal(b.overtimeLosses,1);assert.equal(b.overtimeWins,0);assert.equal(p.overtimeForfeits,1);assert.equal(p.points,10);assert.equal(b.points,4);
 });
 test('rating periods use inclusive MSK dates and carry across month/year boundaries',()=>{
   const now=new Date('2026-12-31T21:30:00Z');
@@ -68,7 +68,7 @@ test('short human wins earn zero; bot wins use duration while human losses remai
   const m=skilled('David-X',100,1);m.durationSeconds=60;
   assert.equal(matchPoints(m,0),-2);assert.equal(matchPoints(m,1),.05);
   m.durationSeconds=null;assert.equal(matchPoints(m,0),-2);
-  m.status='forfeit';m.participants[1].score=10;assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),2.5);
+  m.status='forfeit';m.participants[1].score=10;assert.equal(matchPoints(m,0),0);assert.equal(matchPoints(m,1),2.5);
   m.participants[0].score=20;assert.equal(matchPoints(m,1),2.5);
 });
 test('skill weights use standard 200, Human 100 and GOD 250 above the reference',()=>{
@@ -87,9 +87,9 @@ test('skill is weighted by active duration before applying inverse loss, not by 
   b.skillTimeline=[{fromMs:0,toMs:599000,value:50},{fromMs:599000,toMs:600000,value:200}];assert.equal(botDifficulty(m).averageSkill,50.25);
   m.recordedSeconds=1000;assert.equal(botDifficulty(m).durationMs,600000,'Wall-clock pauses do not dilute active time');
 });
-test('forfeit stays more costly than any ordinary human loss, while missing skill is not guessed',()=>{
+test('forfeit is separate from human points, while missing skill is not guessed',()=>{
   for(const skill of [1,20,50,100,200]){
-    const m=skilled('David-X',skill,1);const normal=matchPoints(m,0);assert.ok(normal>=-4);m.status='forfeit';assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),5*skill/200);m.participants[1].score=20;assert.equal(matchPoints(m,1),5*skill/200);
+    const m=skilled('David-X',skill,1);const normal=matchPoints(m,0);assert.ok(normal>=-4);m.status='forfeit';assert.equal(matchPoints(m,0),0);assert.equal(matchPoints(m,1),5*skill/200);m.participants[1].score=20;assert.equal(matchPoints(m,1),5*skill/200);
   }
   const missing=skilled('David-X',200);missing.participants[1].skillTimeline[0].fromMs=1000;
   assert.equal(botDifficulty(missing).known,false);assert.equal(matchPoints(missing,0),null);
@@ -110,7 +110,7 @@ test('Victory rating preserves skill awards but never subtracts losses or counts
   for(const [profile,skill,points]of [['Human-X',100,10],['GOD-X',250,12.5],['David-X',50,2.5]])assert.equal(victoryPoints(skilled(profile,skill),0),points);
   const matches=[skilled('David-X',200),variable,skilled('David-X',50,1),game('q2duel5','forfeit',1),game('q2duel5','forfeit',0),game('q2duel5','completed',null),game('q2duel5','interrupted',null)];
   const q=aggregateMatches(matches).players.find(p=>!p.isBot);
-  assert.equal(q.victoryPoints,16.25);assert.equal(q.points,7.25);
+  assert.equal(q.victoryPoints,16.25);assert.equal(q.points,12.25);
   assert.equal(q.completedMatches,4);assert.equal(q.normalWins,2);
   assert.equal(victoryPoints(matches[2],0),0);assert.equal(victoryPoints(matches[3],0),0);assert.equal(victoryPoints(matches[4],0),0);
   assert.equal(victoryPoints(matches[6],0),null);
@@ -123,7 +123,7 @@ test('active winner ranks above one-off winner despite losses, which only affect
   const forfeits={...loss,status:'forfeit'};
   const rows=aggregateMatches([active,active,one,...Array(12).fill(loss),...Array(3).fill(forfeits)]).players.filter(p=>!p.isBot);
   assert.deepEqual(rankParticipants(rows).map(p=>[p.name,p.victoryPoints]),[['Active',20],['Once',10]]);
-  assert.deepEqual(rankParticipants(rows,'average').map(p=>[p.name,p.points]),[['Once',10],['Active',-7]]);
+  assert.deepEqual(rankParticipants(rows,'average').map(p=>[p.name,p.points]),[['Active',8],['Once',10]],'One game stays provisional');
   assert.deepEqual(rankParticipants(rows,'activity').map(p=>[p.name,p.completedMatches]),[['Active',14],['Once',1]]);
   const a={...rows[0],name:'Zulu',victoryPoints:10,normalWins:1},b={...a,name:'Alpha',matches:1,completedMatches:1,losses:0,forfeits:0};
   assert.equal(rankParticipants([a,b])[0].name,'Alpha','Losses/forfeits must not break victory ties');

@@ -3,6 +3,7 @@ import {computeAchievements,publicAchievements,achievementDetail} from './achiev
 import {buildDynamics} from './dynamics.js';
 import {buildBotVictims} from './bot-victims.js';
 import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
+import {humanPerformance} from '../public/performance-rating.js';
 
 const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const botFirst={$arrayElemAt:['$participants.isBot',0]};
@@ -45,12 +46,13 @@ export function filters(query,now=new Date()) {
 }
 
 export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
-  const players=new Map();let humanWins=0,botWins=0,finished=0;
+  const players=new Map(),humanGames=new Map();let humanWins=0,botWins=0,finished=0;
   for(const m of rows){
     const known=resultKnown(m),dateMs=Date.parse(m.startedAt),dated=Number.isFinite(dateMs)?new Date(dateMs).toISOString():null;
     if(known){finished++;if(m.winnerIndex!==null){if(m.participants[m.winnerIndex].isBot)botWins++;else humanWins++;}}
     for(let i=0;i<m.participants.length;i++){
       const p=m.participants[i],name=p.isBot?p.profile:p.name,key=`${p.isBot}:${name}`;
+      if(!p.isBot){if(!humanGames.has(key))humanGames.set(key,[]);humanGames.get(key).push(m);}
       if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0});
       const r=players.get(key);r.matches++;r.score+=p.score;r.opponentScore+=m.participants[1-i].score;
       // Match dates follow the same start timestamp shown in the match list.
@@ -60,7 +62,10 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
       r.victoryPoints=(r.victoryPoints||0)+(victoryPoints(m,i)??0);
       r.unscoredWins=(r.unscoredWins||0)+Number(known&&m.status==='completed'&&m.winnerIndex===i&&victoryPoints(m,i)===null);
       if(known){
-        r.finished++;const points=matchPoints(m,i);if(points!==null){r.ratedMatches++;r.points+=points;}
+        r.finished++;const points=matchPoints(m,i);
+        // Human Average uses only normally completed games. A forfeit must
+        // affect neither its numerator nor its denominator (bots keep their policy).
+        if(points!==null&&(p.isBot||m.status==='completed')){r.ratedMatches++;r.points+=points;}
         if(m.winnerIndex===i){r.wins++;if(m.status==='forfeit')r.forfeitWins++;}
         else if(m.winnerIndex===null)r.draws++;
         else {r.losses++;if(m.status==='forfeit')r.forfeits++;}
@@ -70,7 +75,11 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
     }
   }
   const result={matches:rows.length,finished,interrupted:rows.length-finished,humanWins,botWins,fullStats:rows.filter(x=>x.statsComplete).length,minutes:Math.round(rows.reduce((s,x)=>s+(x.durationSeconds??x.recordedSeconds),0)/60),players:[...players.values()].map(p=>({...p,
-    normalWins:p.wins-p.forfeitWins,normalLosses:p.losses-p.forfeits,winRate:p.finished?p.wins/p.finished*100:null,pointsPerMatch:p.ratedMatches?p.points/p.ratedMatches:null,unratedMatches:p.finished-p.ratedMatches,
+    normalWins:p.wins-p.forfeitWins,normalLosses:p.losses-p.forfeits,winRate:p.finished?p.wins/p.finished*100:null,pointsPerMatch:p.ratedMatches?p.points/p.ratedMatches:null,
+    normalMatches:p.finished-p.forfeits-p.forfeitWins,
+    completedWinRate:p.finished-p.forfeits-p.forfeitWins?(p.wins-p.forfeitWins)/(p.finished-p.forfeits-p.forfeitWins)*100:null,
+    forfeitRate:p.finished?p.forfeits/p.finished*100:null,
+    unratedMatches:p.finished-(p.isBot?0:p.forfeits+p.forfeitWins)-p.ratedMatches,
     averageScore:p.matches?p.score/p.matches:null,averageOpponentScore:p.matches?p.opponentScore/p.matches:null,
     fragDifference:p.score-p.opponentScore,averageFragDifference:p.matches?(p.score-p.opponentScore)/p.matches:null,
     averageKills:p.statsMatches?p.kills/p.statsMatches:null,averageDeaths:p.statsMatches?p.deaths/p.statsMatches:null,
@@ -78,7 +87,9 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
     averageDamage:p.statsMatches?p.damage/p.statsMatches:null
   })).sort((a,b)=>b.points-a.points||b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name))};
   result.asOf=asOf.toISOString();
-  for(const player of result.players){player.lastGameAt??=null;player.lastWinAt??=null;}
+  for(const player of result.players){player.lastGameAt??=null;player.lastWinAt??=null;
+    if(!player.isBot)player.performance=humanPerformance(humanGames.get(`false:${player.name}`)||[]);
+  }
   result.ratingPolicy=ratingPolicy;
   result.completedMatches=rows.filter(m=>m.status==='completed').length;
   result.overtimeMatches=rows.filter(m=>m.overtime&&resultKnown(m)).length;
@@ -119,7 +130,7 @@ export async function openStore(config) {
     async achievements(){return publicAchievements(await awardIndex());},
     async achievement(id,query){return achievementDetail(await awardIndex(),id,query);},
     async victims(query){
-      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,status:1,winnerIndex:1,ratingExcluded:1,'participants.isBot':1,'participants.name':1,'participants.profile':1,'participants.score':1}}]).toArray();
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,status:1,winnerIndex:1,ratingExcluded:1,durationSeconds:1,timelineDurationMs:1,startObserved:1,participants:1}}]).toArray();
       return buildBotVictims(rows);
     },
     async dynamics(query){

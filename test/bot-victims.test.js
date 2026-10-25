@@ -19,7 +19,7 @@ const fixture=()=>[
 test('victims: pair identities, all results in denominator, technical wins and pre-forfeit score',()=>{
   const rows=fixture(),reverse=structuredClone(rows[0]);reverse.participants.reverse();reverse.winnerIndex=0;rows[0]=reverse;
   const result=buildBotVictims([...rows,rows[0]]);assert.equal(result.total,3);
-  assert.deepEqual(result.items[0],{bot:'David-X',human:'q',matches:4,botWins:2,forfeitWins:1,botWinPercent:50,lastBotWinAt:rows[2].startedAt,lastBotWinMatchId:rows[2].id,scoredMatches:4,averageBotFrags:8.5,averageHumanFrags:16.25});
+  assert.deepEqual(result.items[0],{bot:'David-X',human:'q',matches:4,botWins:2,forfeitWins:1,botWinPercent:50,lastBotWinAt:rows[2].startedAt,lastBotWinMatchId:rows[2].id,scoredMatches:4,averageBotFrags:8.5,averageHumanFrags:16.25,averageBotSkill:200,botSkillMatches:2});
   assert.ok(result.items.some(x=>x.bot==='GOD-X'&&x.human==='q'));
   assert.ok(!result.items.some(x=>x.human==='unbeaten'));
 });
@@ -27,6 +27,15 @@ test('victims: missing dates/scores stay unknown and invalid results are exclude
   const row=game(1,{hs:2,bs:3,startedAt:null});row.participants[1].score=null;
   const result=buildBotVictims([row,game(2,{winnerIndex:99}),game(3,{winnerIndex:undefined}),{...game(4),participants:[]}]);
   assert.equal(result.total,1);assert.equal(result.items[0].matches,1);assert.equal(result.items[0].lastBotWinAt,null);assert.equal(result.items[0].lastBotWinMatchId,null);assert.equal(result.items[0].averageBotFrags,null);assert.equal(result.items[0].averageHumanFrags,null);
+});
+
+test('victims skill weights active time in bot victories only, including changes and forfeits',()=>{
+  const a=game(30,{skill:50,seconds:120,hs:1,bs:5}),b=game(31,{skill:200,seconds:600,hs:1,bs:5}),lost=game(32,{skill:1,hs:50,bs:0});
+  b.participants[1].skillVariable=true;b.participants[1].skillTimeline=[{fromMs:0,toMs:300000,value:100},{fromMs:300000,toMs:600000,value:200}];
+  b.status='forfeit';
+  const missing=game(33,{hs:1,bs:5});missing.startObserved=false;
+  const r=buildBotVictims([a,b,lost,missing]).items[0];
+  assert.equal(r.averageBotSkill,(50*120+150*600)/720);assert.equal(r.botSkillMatches,2);assert.equal(r.botWins,3);
 });
 test('victims API applies map, bot, player, dates, status, skill and style before grouping',async()=>{
   const config={database:'q2pro_botstats_victims_test',mongoUri:'mongodb://127.0.0.1:27017/?directConnection=true',ingestToken:'victims-test-secret-'.repeat(4),storageDir:testPath('victims-api'),basePath:'/botstats'};
