@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {aggregateMatches,filters,periodBounds} from '../src/store.js';
 import {matchPoints,victoryPoints,victoryDuration,botDifficulty,rankParticipants,rankMaps,ratingDetails,botLossPenalty} from '../public/rating.js';
-function game(map,status,winnerIndex,score=[5,3]){return {map,status,winnerIndex,statsComplete:true,durationSeconds:600,participants:[{name:'q',isBot:false,score:score[0],stats:{kills:score[0],deaths:score[1],damageDealt:500}},{name:'David-X[200]',profile:'David-X',isBot:true,score:score[1],stats:{kills:score[1],deaths:score[0],damageDealt:400}}]};}
+function game(map,status,winnerIndex,score=winnerIndex===null&&status==='completed'?[3,3]:[5,3]){return {map,status,winnerIndex,statsComplete:true,durationSeconds:600,participants:[{name:'q',isBot:false,score:score[0],stats:{kills:score[0],deaths:score[1],damageDealt:500}},{name:'David-X[200]',profile:'David-X',isBot:true,score:score[1],stats:{kills:score[1],deaths:score[0],damageDealt:400}}]};}
 test('independent human/bot policies; leading forfeiter score and per-map averages',()=>{
   const s=aggregateMatches([game('q2duel5','completed',0),game('q2duel5','completed',1,[2,6]),game('ztn2dm3','forfeit',1,[10,3]),game('ztn2dm3','interrupted',null,[4,1])]);
-  const p=s.players.find(p=>p.name==='q');assert.equal(p.points,9);assert.equal(p.losses,2);assert.equal(p.normalLosses,1);assert.equal(p.forfeits,1);assert.equal(p.matches,4);assert.equal(p.finished,3);assert.equal(p.pointsPerMatch,9/2);assert.equal(p.averageScore,21/4);assert.equal(p.averageFragDifference,2);assert.equal(p.averageDeaths,13/4);
+  const p=s.players.find(p=>p.name==='q');assert.equal(p.points,9);assert.equal(p.losses,3);assert.equal(p.normalLosses,1);assert.equal(p.forfeits,2);assert.equal(p.matches,4);assert.equal(p.finished,4);assert.equal(p.pointsPerMatch,9/2);assert.equal(p.averageScore,21/4);assert.equal(p.averageFragDifference,2);assert.equal(p.averageDeaths,13/4);
   assert.equal(s.byMap.find(m=>m.map==='q2duel5').players.find(p=>p.name==='q').points,9);
   assert.equal(s.byMap.find(m=>m.map==='ztn2dm3').players.find(p=>p.name==='q').points,0);
-  const b=s.players.find(p=>p.isBot);assert.equal(b.points,14);assert.equal(b.forfeitWins,1);assert.equal(b.normalWins,1);
+  const b=s.players.find(p=>p.isBot);assert.equal(b.points,19);assert.equal(b.forfeitWins,2);assert.equal(b.normalWins,1);
 });
 test('forfeit bot rewards use the confirmed winner and not the score at surrender',()=>{
   for(const [score,points]of [[[2,8],5],[[8,2],5],[[4,4],5]]){
@@ -113,7 +113,7 @@ test('Victory rating preserves skill awards but never subtracts losses or counts
   assert.equal(q.victoryPoints,16.25);assert.equal(q.points,12.25);
   assert.equal(q.completedMatches,4);assert.equal(q.normalWins,2);
   assert.equal(victoryPoints(matches[2],0),0);assert.equal(victoryPoints(matches[3],0),0);assert.equal(victoryPoints(matches[4],0),0);
-  assert.equal(victoryPoints(matches[6],0),null);
+  assert.equal(victoryPoints(matches[6],0),0);
   assert.deepEqual(ratingDetails(variable).victoryPoints,[6.25,0]);
 });
 

@@ -22,7 +22,7 @@ try{
  const {demo,parserVersion,rating,...oldMatch}=original;
  const legacy={schemaVersion:1,parserVersion,demo,matches:[oldMatch]};
  await sendManifest({...config,apiUrl},file,legacy);
- assert.equal((await api('matches/'+oldMatch.id)).status,'interrupted');
+ assert.equal((await api('matches/'+oldMatch.id)).status,'forfeit','Legacy results work before importer upgrade');
  const importer={...config,apiUrl,sourceDir:dir+'/incoming',queueDir:dir+'/queue',decoder:path.resolve('bin/mvd-decoder.exe'),settleSeconds:0};
  await mkdir(importer.queueDir,{recursive:true});const info=await stat(file),key=createHash('sha256').update(apiUrl+'\n'+path.resolve(file)).digest('hex');
  await writeFile(importer.queueDir+'/state.json',JSON.stringify({[key]:{file,size:info.size,mtimeMs:info.mtimeMs,version:parserVersion,sha256:demo.sha256,done:true}}));

@@ -19,9 +19,10 @@ test('own profile maxima, active-time variable skill, unknown required fields an
  const m=match();m.participants[1].skillTimeline=[{fromMs:0,toMs:300000,value:50},{fromMs:300000,toMs:600000,value:200}];
  assert.equal(matchPoints(m,1),6.25);m.participants.reverse();m.winnerIndex=0;assert.equal(matchPoints(m,0),6.25);
  m.participants[0].skillTimeline[0].fromMs=1;assert.equal(matchPoints(m,0),null);
- for(const patch of [{startObserved:false},{durationSeconds:null,timelineDurationMs:null},{durationSeconds:-1},{ratingExcluded:'opponent_changed'},{status:'interrupted'}])assert.equal(matchPoints({...match(),...patch},1),null);
+ for(const patch of [{startObserved:false},{durationSeconds:null,timelineDurationMs:null},{durationSeconds:-1},{ratingExcluded:'opponent_changed'}])assert.equal(matchPoints({...match(),...patch},1),null);
+ assert.equal(matchPoints({...match(),status:'interrupted'},1),5);
  assert.equal(botWinAward({...match(),startObserved:false}).known,false);
- const tied=match();tied.winnerIndex=null;assert.equal(matchPoints(tied,1),0);
+ const tied=match();tied.winnerIndex=null;tied.participants[1].score=tied.participants[0].score;assert.equal(matchPoints(tied,1),0);
 });
 test('aggregation keeps tiny positive awards and fractions; loss policy remains intact',()=>{
  const normal=match(300,100),technical=match(1,1,'GOD-X','forfeit');

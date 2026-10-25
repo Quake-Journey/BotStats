@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {buildDynamics} from '../src/dynamics.js';
 import {game} from './support/achievement-fixtures.js';
 const now=new Date('2026-10-23T12:00:00Z');
-test('victory counts include forfeits irrespective of score or skill, draws and fragments excluded',()=>{
+test('victory counts include forfeits and interruptions irrespective of score, genuine draws excluded',()=>{
   const rows=[game(1),game(2,{skill:50,hs:0,bs:1}),game(3,{status:'forfeit',winnerIndex:1,hs:40,bs:0}),game(4,{hs:2,bs:2}),game(5,{status:'interrupted'}),game(6,{ratingExcluded:'opponent_changed'})];
   const d=buildDynamics(rows,{},now);
-  assert.equal(d.totals.botWins,2);assert.equal(d.totals.humanWins,1);assert.equal(d.totals.botForfeitWins,1);assert.equal(d.totals.matches,3);
-  assert.equal(d.excluded.draws,1);assert.equal(d.excluded.unconfirmed,1);assert.equal(d.excluded.changedOpponent,1);
+  assert.equal(d.totals.botWins,3);assert.equal(d.totals.humanWins,1);assert.equal(d.totals.botForfeitWins,2);assert.equal(d.totals.matches,4);
+  assert.equal(d.excluded.draws,1);assert.equal(d.excluded.unconfirmed,0);assert.equal(d.excluded.changedOpponent,1);
   rows[0].participants.reverse();rows[0].winnerIndex=1;assert.equal(buildDynamics(rows).totals.humanWins,1);
 });
 test('MSK date boundary, explicit periods include zero-activity days, null share is not a loss',()=>{

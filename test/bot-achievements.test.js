@@ -32,9 +32,10 @@ test('Terminator counts forfeits even when behind, but losses/draws/unknown brea
  const rows=series(9,{seconds:30});rows.push(win(9,{seconds:1,status:'forfeit',hs:20,bs:0,winnerIndex:1}));
  assert.equal(has(rows,'terminator'),true);assert.equal(has(rows,'artificial-mind'),false);
  assert.equal(has(rows.slice(0,9),'terminator'),false);
- for(const patch of [{winnerIndex:0},{winnerIndex:null},{status:'interrupted'},{ratingExcluded:'opponent_changed'},{startedAt:null}]){
+ for(const patch of [{winnerIndex:0},{winnerIndex:null,participants:game(0,{hs:2,bs:2}).participants},{ratingExcluded:'opponent_changed'},{startedAt:null}]){
   const r=structuredClone(rows);Object.assign(r[5],patch);r.push(win(10));assert.equal(has(r,'terminator'),false,JSON.stringify(patch));
  }
+ const interrupted=structuredClone(rows);interrupted[5].status='interrupted';assert.equal(has(interrupted,'terminator'),true);
  assert.equal(has([...rows,...rows],'terminator'),true);assert.equal(awards([...rows,...rows]).get('bot-terminator').evidence.length,10);
 });
 test('Artificial Mind excludes forfeit; Meat Factory includes only actual +20 technical wins',()=>{
@@ -43,7 +44,8 @@ test('Artificial Mind excludes forfeit; Meat Factory includes only actual +20 te
  const rows=series(20,{seconds:20,hs:3,bs:23,status:'forfeit',winnerIndex:1});
  assert.equal(has(rows,'meat-factory'),true);
  rows[19].participants[1].score=22;assert.equal(has(rows,'meat-factory'),false);
- rows[19].participants[1].score=23;rows[19].winnerIndex=0;assert.equal(has(rows,'meat-factory'),false);
+ rows[19].participants[1].score=23;rows[19].winnerIndex=0;assert.equal(has(rows,'meat-factory'),true,'Forfeit cannot be a human win');
+ rows[19].status='completed';assert.equal(has(rows,'meat-factory'),false);
 });
 test('missing weapon/pickup values are not zeros; native abbreviated weapons and legacy names both work',()=>{
  const m=botCollection()[0];assert.equal(has([m],'rail-protocol'),true);assert.equal(has([m],'siege-engine'),true);

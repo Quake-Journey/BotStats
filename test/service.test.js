@@ -103,8 +103,8 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
       await store.save(trend);
       const dynamics=await(await fetch(apiUrl+'/api/dynamics?q=Dynamics%20API%20probe&skill=200&status=completed&period=custom&from=2026-10-01&to=2026-10-01')).json();
       assert.equal(dynamics.totals.humanWins,1,'All skills without rating weights');
-      assert.equal(dynamics.totals.botWins,1,'Forfeit counts despite an inherited completed-only filter');
-      assert.equal(dynamics.totals.forfeits,1);assert.equal(dynamics.points.length,1);
+      assert.equal(dynamics.totals.botWins,2,'Forfeit and interruption count despite an inherited completed-only filter');
+      assert.equal(dynamics.totals.forfeits,2);assert.equal(dynamics.points.length,1);
     }finally{await store.save(fixture);}
   }finally{await new Promise(r=>server.close(r));await store.close();}
 });

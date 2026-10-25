@@ -1,10 +1,12 @@
 import {resultKnown,botDifficulty} from '../public/rating.js';
+import {normalizeMatchResult} from '../public/match-result.js';
 
 // Inputs already obey the same period/map/settings filters as the match list.
 // Group by bot profile (not the skill suffix), and keep exact human nicknames.
 export function buildBotVictims(matches){
   const pairs=new Map(),seen=new Set();
-  for(const m of matches){
+  for(const raw of matches){
+    const m=normalizeMatchResult(raw);
     if(m.id&&seen.has(m.id))continue;
     if(m.id)seen.add(m.id);
     if(!resultKnown(m)||m.participants?.length!==2)continue;

@@ -8,7 +8,7 @@ import {humanPerformance} from '../public/performance-rating.js';
 function match(name,status='completed',winnerIndex=0,map='q2duel5'){
   return {map,status,winnerIndex,durationSeconds:600,startObserved:true,participants:[
     {name,isBot:false,score:5},
-    {name:'David-X[200]',profile:'David-X',isBot:true,skill:200,score:2}
+    {name:'David-X[200]',profile:'David-X',isBot:true,skill:200,score:status==='completed'&&winnerIndex===null?5:2}
   ]};
 }
 const human=rows=>aggregateMatches(rows).players.find(p=>!p.isBot);
@@ -35,7 +35,7 @@ test('anti-ranking counts only known results, sorts percentages then counts, and
   const rows=[match('A','forfeit',1),match('A'),match('A','interrupted',null),{...match('A'),ratingExcluded:'opponent_changed'},
     match('B','forfeit',1),match('B','forfeit',1),match('B'),match('B'),match('C','forfeit',1,'q3t2')];
   const s=aggregateMatches(rows),r=rankParticipants(s.players.filter(p=>!p.isBot),'forfeits');
-  assert.deepEqual(r.map(p=>[p.name,p.forfeitRate,p.finished]),[['C',100,1],['B',50,4],['A',50,2]]);
+  assert.deepEqual(r.map(p=>[p.name,p.forfeitRate,p.finished]),[['C',100,1],['A',2/3*100,3],['B',50,4]]);
   assert.equal(s.byMap.find(m=>m.map==='q3t2').players.find(p=>!p.isBot).forfeitRate,100);
   assert.equal(r.find(p=>p.name==='A').unratedMatches,0);
 });

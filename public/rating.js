@@ -1,6 +1,7 @@
+import {normalizeMatchResult} from './match-result.js';
 // One policy for both API aggregation and the browser's per-match explanation.
 export const ratingPolicy = Object.freeze({
-  version: 'human-performance-forfeit-share-v7',
+  version: 'human-performance-forfeit-share-v8',
   skill: Object.freeze({standardReference:200, humanReference:100, inverseWeightCap:4}),
   duration: Object.freeze({minimumSeconds:120, maximumSeconds:600, minimumPoints:1, maximumPoints:10}),
   human: Object.freeze({win:10, loss:-1, forfeitWin:0, forfeitLoss:0, draw:0}),
@@ -71,6 +72,7 @@ export function botLossPenalty(match) {
 }
 
 export function resultKnown(match) {
+  match=normalizeMatchResult(match);
   return !match.ratingExcluded && (match.status==='completed' ||
     (match.status==='forfeit' && Number.isInteger(match.winnerIndex)));
 }
@@ -78,6 +80,7 @@ export function resultKnown(match) {
 // Each bot's own maximum is 100 / 200 / 250. The actual active duration,
 // including overtime, sets the reward; early forfeits still earn a small plus.
 export function botWinAward(match) {
+  match=normalizeMatchResult(match);
   if(match.startObserved===false)return {known:false,reason:'partial_duration'};
   const seconds=Number.isFinite(match.durationSeconds)?match.durationSeconds:
     match.startObserved===true&&Number.isFinite(match.timelineDurationMs)?match.timelineDurationMs/1000:null;
@@ -91,6 +94,7 @@ export function botWinAward(match) {
 }
 
 export function matchPoints(match,index) {
+  match=normalizeMatchResult(match);
   if(!resultKnown(match))return null;
   const p=match.participants[index];
   const policy=p.isBot?ratingPolicy.bot:ratingPolicy.human;
@@ -112,6 +116,7 @@ export function matchPoints(match,index) {
 // Victory rating is independent of penalties. Forfeits never award victory points.
 // A win with unknown required difficulty/duration stays unscored, not guessed.
 export function victoryPoints(match,index){
+  match=normalizeMatchResult(match);
   if(!resultKnown(match))return null;
   if(match.status!=='completed'||match.winnerIndex!==index)return 0;
   return matchPoints(match,index);
@@ -133,5 +138,6 @@ export function rankMaps(rows){
 }
 
 export function ratingDetails(match){
+  match=normalizeMatchResult(match);
   return {version:ratingPolicy.version,difficulty:botDifficulty(match),botLoss:botLossPenalty(match),botWin:botWinAward(match),duration:victoryDuration(match),points:match.participants.map((_,i)=>matchPoints(match,i)),victoryPoints:match.participants.map((_,i)=>victoryPoints(match,i))};
 }

@@ -4,6 +4,8 @@ import {buildDynamics} from './dynamics.js';
 import {buildBotVictims} from './bot-victims.js';
 import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
 import {humanPerformance} from '../public/performance-rating.js';
+import {normalizeMatchResult} from '../public/match-result.js';
+import {matchResultStages} from './match-results.js';
 
 const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const botFirst={$arrayElemAt:['$participants.isBot',0]};
@@ -47,6 +49,7 @@ export function filters(query,now=new Date()) {
 }
 
 export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
+  rows=rows.map(normalizeMatchResult);
   const players=new Map(),humanGames=new Map();let humanWins=0,botWins=0,finished=0;
   for(const m of rows){
     const known=resultKnown(m),dateMs=Date.parse(m.startedAt),dated=Number.isFinite(dateMs)?new Date(dateMs).toISOString():null;
@@ -112,7 +115,7 @@ export async function openStore(config) {
   await client.connect();const db=client.db(config.database),demos=db.collection('demos');
   await demos.createIndex({'matches.startedAt':-1});await demos.createIndex({'matches.map':1});
   await demos.createIndex({'matches.participants.name':1});
-  const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion'}]}}}];
+  const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion'}]}}},...matchResultStages()];
   let awardRevision=0,awardCache=null,awardPending=null;
   async function awardIndex(){
     const revision=awardRevision;

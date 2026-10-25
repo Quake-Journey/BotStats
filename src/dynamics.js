@@ -1,3 +1,4 @@
+import {normalizeMatchResult} from '../public/match-result.js';
 const DAY=86400000,MSK=3*3600000;
 const dateKey=ms=>new Date(ms).toISOString().slice(0,10);
 const dayTime=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&dateKey(Date.parse(s+'T00:00:00Z'))===s?Date.parse(s+'T00:00:00Z'):null;
@@ -20,7 +21,8 @@ function complete(value){const matches=value.botWins+value.humanWins;return {...
 // never rating points: a technical winner counts even when behind on score.
 export function buildDynamics(rows,range={},now=new Date()){
   const dated=[],excluded={undated:0,draws:0,unconfirmed:0,changedOpponent:0};
-  for(const m of rows){
+  for(const raw of rows){
+    const m=normalizeMatchResult(raw);
     if(m.participants?.length!==2||m.participants.filter(p=>p.isBot).length!==1)continue;
     if(m.ratingExcluded){excluded.changedOpponent++;continue;}
     if(!['completed','forfeit'].includes(m.status)){excluded.unconfirmed++;continue;}

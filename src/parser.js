@@ -4,8 +4,9 @@ import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
+import {normalizeMatchResult} from '../public/match-result.js';
 
-export const PARSER_VERSION = '0.1.6';
+export const PARSER_VERSION = '0.1.7';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
@@ -209,6 +210,7 @@ export function summarize(collector, meta) {
         participants=named.teamNames.map((name,i)=>({name,score:last.teamScores[i],isBot:botName(name||''),profile:botName(name||'')?baseName(name):null,skill:skillInName(name||''),style:null,stats:null}));
       }
       if(participants.length!==2 || participants.some(p=>!p.name) || participants.filter(p=>p.isBot).length!==1)continue;
+      const participantIndex=name=>participants.findIndex(p=>p.name===name||(p.isBot&&baseName(name)===p.profile));
       const ended=ps.find(p=>/Timelimit hit\. Match ended| wins, | wins by |Match drawn/i.test(p.text));
       const ff=ps.find(p=>/^.+? (?:wins by forfeit[!.]|(?:has )?forfeited(?: the match)?[!.])\s*$/i.test(p.text));
       const human=participants.find(p=>!p.isBot);
@@ -231,7 +233,7 @@ export function summarize(collector, meta) {
       // frag which may never reach a Match HUD frame (especially sudden death).
       const announcedResult=ps.map(p=>p.text.match(/^(.+?) wins, (-?\d+) to (-?\d+)\.\s*$/)).find(Boolean);
       if(!table&&status==='completed'&&announcedResult) {
-        const winner=participants.findIndex(p=>p.name===announcedResult[1]);
+        const winner=participantIndex(announcedResult[1]);
         if(winner>=0){participants[winner].score=+announcedResult[2];participants[1-winner].score=+announcedResult[3];scoreSource='server_result';}
       }
       end=termination?.timeMs??tableTime??ended?.timeMs??(k<bounds.length-2?end:fs.at(-1)?.timeMs??end);
@@ -295,10 +297,10 @@ export function summarize(collector, meta) {
       const stateHistory=participants.map(p=>({name:p.name,samples:fs.filter(f=>f.timeMs<=end && f.timeMs%1000<100 && baseName(f.name)===baseName(p.name)).map(f=>({timeMs:gameTime(f.timeMs),health:f.health,armor:f.armor}))}));
       const winnerMessage=ps.map(p=>p.text.match(/^(.+?) wins(?:,| by )/)).find(Boolean);
       const winnerName=winnerMessage?.[1];
-      const winner=status==='forfeit'?participants.findIndex(p=>p.isBot):status==='interrupted'?null:winnerName?participants.findIndex(p=>p.name===winnerName):participants[0].score===participants[1].score?null:participants[0].score>participants[1].score?0:1;
+      const winner=status==='forfeit'?participants.findIndex(p=>p.isBot):status==='interrupted'?null:winnerName?participantIndex(winnerName):participants[0].score===participants[1].score?null:participants[0].score>participants[1].score?0:1;
       const botProfiles=[...new Set(fs.filter(f=>f.timeMs<=end).flatMap(f=>f.teamNames).filter(n=>botName(n||'')).map(baseName))];
       const ratingExcluded=botProfiles.length>1?'opponent_changed':null;
-      matches.push({id:`${meta.sha256}-${s.id}-${k}`,segment:s.id,ordinal:k,map:table?.map||s.map||meta.originalName.split('_')[2],
+      matches.push(normalizeMatchResult({id:`${meta.sha256}-${s.id}-${k}`,segment:s.id,ordinal:k,map:table?.map||s.map||meta.originalName.split('_')[2],
         startedAt:meta.recordedAt?new Date(Date.parse(meta.recordedAt)+start).toISOString():null,
         startMs:start,endMs:end,timelineDurationMs:gameTime(end),recordedSeconds:Math.max(0,(end-start)/1000),durationSeconds,startObserved,startSource,
         status,winnerIndex:winner<0?null:winner,forfeitBy:status==='forfeit'?human.name:null,
@@ -307,7 +309,7 @@ export function summarize(collector, meta) {
         ...extraTime,botProfiles,ratingExcluded,
         participants,scoreHistory,stateHistory,settingsChanges:changes,
         events:ps.filter(p=>p.timeMs<=end && !p.text.includes('MATCH STATS') && (p===termination||p.level===1||/forfeit| wins|Timelimit|Restarting|paused|resum|^Scores are tied|^Fight!|^OpenTDM-X: .* (?:style:|skill)/i.test(p.text))).map(p=>({timeMs:gameTime(p.timeMs),text:p.text.trim()})),
-        warnings:[...(!startObserved?['partial_start']:[]),...(!statsComplete?['no_final_stats']:[]),...(!s.version?['unknown_mod_version']:[]),...(ratingExcluded?[ratingExcluded]:[])]});
+        warnings:[...(!startObserved?['partial_start']:[]),...(!statsComplete?['no_final_stats']:[]),...(!s.version?['unknown_mod_version']:[]),...(ratingExcluded?[ratingExcluded]:[])]}));
     }
   }
   return {schemaVersion:1,parserVersion:PARSER_VERSION,demo:meta,matches};

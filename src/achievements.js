@@ -1,4 +1,5 @@
 import {botDifficulty,victoryDuration} from '../public/rating.js';
+import {normalizeMatchResult} from '../public/match-result.js';
 import {sortRows} from '../public/sort.js';
 import {BOT_DEFINITIONS,computeBotAchievements} from './bot-achievements.js';
 
@@ -64,6 +65,7 @@ const dateValue=m=>Number.isFinite(Date.parse(m.startedAt))?Date.parse(m.started
 const evidenceDate=m=>Number.isFinite(Date.parse(m.startedAt))?new Date(Date.parse(m.startedAt)+(m.recordedSeconds??m.durationSeconds??0)*1000).toISOString():null;
 
 export function computeAchievements(input){
+  input=input.map(normalizeMatchResult);
   const rows=[...new Map(input.filter(m=>m.id).map(m=>[m.id,m])).values()].sort((a,b)=>dateValue(a)-dateValue(b)||a.id.localeCompare(b.id));
   const players=new Map(),matches=new Map();
   for(const m of rows){

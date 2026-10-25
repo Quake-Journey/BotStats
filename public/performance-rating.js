@@ -1,4 +1,5 @@
 import {botDifficulty,resultKnown} from './rating.js';
+import {normalizeMatchResult} from './match-result.js';
 
 // A conservative performance estimate against fixed bot difficulty references.
 // Not a sum of rewards and not Elo (opponent ratings never depend on upload order).
@@ -11,7 +12,8 @@ const logistic=x=>x>=0?1/(1+Math.exp(-x)):Math.exp(x)/(1+Math.exp(x));
 
 export function humanPerformance(matches){
   const p=performancePolicy,evidence=[];
-  for(const m of matches){
+  for(const raw of matches){
+    const m=normalizeMatchResult(raw);
     if(m.status!=='completed'||!resultKnown(m)||m.startObserved===false)continue;
     const seconds=m.durationSeconds??(m.startObserved===true?m.timelineDurationMs/1000:null);
     if(!Number.isFinite(seconds)||seconds<p.minimumSeconds)continue;

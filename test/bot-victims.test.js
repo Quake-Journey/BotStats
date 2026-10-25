@@ -19,13 +19,13 @@ const fixture=()=>[
 test('victims: pair identities, all results in denominator, technical wins and pre-forfeit score',()=>{
   const rows=fixture(),reverse=structuredClone(rows[0]);reverse.participants.reverse();reverse.winnerIndex=0;rows[0]=reverse;
   const result=buildBotVictims([...rows,rows[0]]);assert.equal(result.total,3);
-  assert.deepEqual(result.items[0],{bot:'David-X',human:'q',matches:4,botWins:2,forfeitWins:1,botWinPercent:50,lastBotWinAt:rows[2].startedAt,lastBotWinMatchId:rows[2].id,scoredMatches:4,averageBotFrags:8.5,averageHumanFrags:16.25,averageBotSkill:200,botSkillMatches:2});
+  assert.deepEqual(result.items[0],{bot:'David-X',human:'q',matches:5,botWins:3,forfeitWins:2,botWinPercent:60,lastBotWinAt:rows[7].startedAt,lastBotWinMatchId:rows[7].id,scoredMatches:5,averageBotFrags:26.6,averageHumanFrags:13,averageBotSkill:200,botSkillMatches:3});
   assert.ok(result.items.some(x=>x.bot==='GOD-X'&&x.human==='q'));
   assert.ok(!result.items.some(x=>x.human==='unbeaten'));
 });
 test('victims: missing dates/scores stay unknown and invalid results are excluded',()=>{
   const row=game(1,{hs:2,bs:3,startedAt:null});row.participants[1].score=null;
-  const result=buildBotVictims([row,game(2,{winnerIndex:99}),game(3,{winnerIndex:undefined}),{...game(4),participants:[]}]);
+  const result=buildBotVictims([row,game(2,{winnerIndex:99}),game(3,{winnerIndex:undefined,hs:null,bs:null}),{...game(4),participants:[]}]);
   assert.equal(result.total,1);assert.equal(result.items[0].matches,1);assert.equal(result.items[0].lastBotWinAt,null);assert.equal(result.items[0].lastBotWinMatchId,null);assert.equal(result.items[0].averageBotFrags,null);assert.equal(result.items[0].averageHumanFrags,null);
 });
 
@@ -46,9 +46,9 @@ test('victims API applies map, bot, player, dates, status, skill and style befor
     await store.save({demo:{sha256:'b'.repeat(64)},parserVersion:'0.1.6',matches:rows});
     const get=async q=>{const r=await fetch(`http://127.0.0.1:${server.address().port}/botstats/api/victims?`+q);assert.equal(r.status,200);return r.json();};
     assert.deepEqual(await get(''),buildBotVictims(rows));
-    const selected=await get('q=q&bot=David-X');assert.equal(selected.total,1);assert.equal(selected.items[0].matches,4);
-    assert.equal((await get('q=q&bot=David-X&map=q2duel5')).items[0].botWins,1);
-    assert.equal((await get('q=q&bot=David-X&map=q2duel5')).items[0].lastBotWinMatchId,rows[0].id,'Filtered date and link refer to the same victory');
+    const selected=await get('q=q&bot=David-X');assert.equal(selected.total,1);assert.equal(selected.items[0].matches,5);
+    assert.equal((await get('q=q&bot=David-X&map=q2duel5')).items[0].botWins,2);
+    assert.equal((await get('q=q&bot=David-X&map=q2duel5')).items[0].lastBotWinMatchId,rows[7].id,'Filtered date and link refer to the same victory');
     assert.equal((await get('q=q&bot=David-X&status=forfeit')).items[0].botWinPercent,100);
     assert.equal((await get('q=q&bot=David-X&status=completed')).items[0].matches,3);
     assert.equal((await get('q=q&bot=David-X&skill=50')).total,0);

@@ -80,11 +80,12 @@ test('OT requires ten minutes of regulation, not combined OT length',()=>{
   assert.equal(regulationSeconds(game(0,{...options,startObserved:false})),null);
   assert.equal(regulationSeconds(game(0,{overtime:true})),null);
 });
-test('explorer counts human forfeit losses, not bot losses or interrupted matches',()=>{
+test('explorer counts all human forfeits, including interruptions and inverted legacy winners',()=>{
   assert.equal(has(series(9,{status:'forfeit',winnerIndex:1}),'explorer'),false);
   assert.equal(has(series(10,{status:'forfeit',winnerIndex:1}),'explorer'),true);
-  assert.equal(has(series(10,{status:'forfeit',winnerIndex:0}),'explorer'),false);
-  assert.equal(has(series(10,{status:'interrupted',winnerIndex:1}),'explorer'),false);
+  assert.equal(has(series(10,{status:'forfeit',winnerIndex:0}),'explorer'),true);
+  assert.equal(has(series(10,{status:'interrupted',winnerIndex:1}),'explorer'),true);
+  assert.equal(has(series(10,{hs:0,bs:1}),'explorer'),false);
 });
 test('map pool requires ten matches on EACH map; duplicates and forfeits do not count',()=>{
   const rows=series(10).concat(series(10,{map:'ztn2dm3'}).map((m,i)=>({...m,id:'z'+i})),series(9,{map:'q3t2'}).map((m,i)=>({...m,id:'q'+i})));
@@ -119,7 +120,8 @@ test('100 completed games, no forfeits; streak skips FF and breaks on other resu
   assert.equal(has(series(99),'farm-owner'),false);assert.equal(has(series(100),'farm-owner'),true);
   assert.equal(has([...series(99),game(100,{status:'forfeit'})],'farm-owner'),false);
   assert.equal(has([...series(4),game(4,{status:'forfeit'}),game(5)],'cowboy'),true);
-  for(const o of [{hs:0,bs:1},{hs:1,bs:1},{skill:100},{seconds:120},{status:'interrupted'}])assert.equal(has([...series(4),game(4,o),game(5)],'cowboy'),false);
+  for(const o of [{hs:0,bs:1},{hs:1,bs:1},{skill:100},{seconds:120},{ratingExcluded:'opponent_changed'}])assert.equal(has([...series(4),game(4,o),game(5)],'cowboy'),false);
+  assert.equal(has([...series(4),game(4,{status:'interrupted'}),game(5)],'cowboy'),true,'Interruptions follow the same skip rule as forfeits');
   assert.equal(has([...series(5),game(5,{hs:0,bs:1})],'cowboy'),true,'earned streak persists');
 });
 test('comeback works in either participant order; never use final margin alone',()=>{
@@ -131,7 +133,7 @@ test('revenge needs next completed match, same bot/map, no lower skill',()=>{
   const loss=game(0,{hs:0,bs:20});assert.equal(has([loss,game(1)],'revenge'),true);
   assert.equal(has([loss,game(1,{status:'forfeit'}),game(2)],'revenge'),true);
   for(const o of [{map:'q3t2'},{bot:'Pacifist-X'},{skill:199},{seconds:599},{hs:0,bs:1}])assert.equal(has([loss,game(1,o)],'revenge'),false);
-  assert.equal(has([loss,game(1,{status:'interrupted'}),game(2)],'revenge'),false);
+  assert.equal(has([loss,game(1,{status:'interrupted'}),game(2)],'revenge'),true,'Technical losses are skipped like other forfeits');
 });
 test('head hunter counts characters, crowns count distinct map pool',()=>{
   const rows=['David-X','Pacifist-X','OptiMus-X','GOD-X','Polosatiy-X'].map((bot,i)=>game(i,{bot}));

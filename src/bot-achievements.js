@@ -1,4 +1,5 @@
 import {victoryDuration} from '../public/rating.js';
+import {normalizeMatchResult} from '../public/match-result.js';
 
 export const BOT_MAP_POOL=Object.freeze(['q2duel5','ztn2dm3','q2duel1','q3t2']);
 const award=(id,ru,en,ruleRu,ruleEn)=>({id:'bot-'+id,audience:'bot',name:{ru,en},description:{ru:ruleRu,en:ruleEn},revocable:false,icon:`achievements/bots/${id}.svg`});
@@ -39,6 +40,7 @@ const botName=b=>b.profile||b.name.replace(/(?:\[\d+\]|>\d+)$/,'');
 // Input is deduplicated and ordered by the existing shared achievement index.
 // Separate maps prevent a human nickname equal to a bot profile sharing awards.
 export function computeBotAchievements(rows,regulationSeconds){
+  rows=rows.map(normalizeMatchResult);
   const bots=new Map();
   // An undated match cannot be placed before or inside a winning streak.
   // Keep ordinary cumulative awards, but do not invent its chronological order.
