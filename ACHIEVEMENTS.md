@@ -6,7 +6,7 @@
 Every award links to its rules, holders and qualifying matches. RU/EN, theme,
 search, sorting, selected holder and evidence pagination are shareable through the URL.
 
-Всего 24 достижения. Семь новых наград используют подтверждённую победу человека,
+24 достижения людей и 20 отдельных достижений ботов. Семь новых наград используют подтверждённую победу человека,
 полное игровое время и неизменный скилл бота. Старые 17 условий сохранены.
 
 | Новая награда | Условия |
@@ -64,7 +64,9 @@ Locked titles and conditions are not sent in the catalog API or client modules.
 - Award computation does not modify match documents. A service-local cache shares
   concurrent calculations, expires after 30 seconds and is invalidated immediately
   after an accepted import. No MongoDB migration or reimport is required.
-- Existing parser, match results and rating formulas are unchanged.
+- Awards never add rating points. Match results and rating calculations are independent
+  of award ownership. This update also includes the documented bot win/loss formulas
+  and parser 0.1.6 termination detection; see README and About the rating.
 - Artwork: twenty-four original transparent emblems, delivered as 384px WebP plus
   80px miniatures under `public/achievements/`. No external image
   host is needed. Asset snapshots include the new CSS, modules and images.
@@ -86,3 +88,64 @@ through `PLAYWRIGHT_BROWSERS_PATH`.
 Chromium, Firefox and WebKit at desktop/mobile widths, RU/EN and light/dark themes:
 human-first scores, sortable columns, shared filter URLs, reloads, forfeit exclusion
 and the existing Human Defeats tab.
+
+
+## Серия машин / Machine series
+
+Боты получают отдельные 20 наград. Все уровни скилла одного профиля объединяются;
+человек с таким же ником не получает награды бота. Условия человеческих наград
+сохранены. Награды рассчитываются по всей истории; фильтры рейтинга их не меняют.
+Награды скрыты, пока их никто не получил. Ни одна награда не добавляет очков.
+
+| Награда / Award | Условия |
+| --- | --- |
+| Скайнет / Skynet | Победить человека с преимуществом минимум 50 фрагов. Победа без forfeit, матч от 10 минут. |
+| Терминатор / Terminator | Выиграть у людей 10 матчей подряд, включая forfeit. Любая длительность. Поражение, ничья или запись без результата прерывают серию. |
+| Искусственный разум / Artificial Mind | Выиграть у людей не менее 10 матчей без forfeit. Любая длительность. |
+| Мясной комбинат / Meat Factory | Выиграть 20 матчей с преимуществом минимум 20 фрагов, включая forfeit. Любая длительность; учитывается фактический счёт до сдачи. |
+| Судный день / Judgment Day | Победить человека с преимуществом минимум 30 фрагов. Победа без forfeit, матч от 10 минут. |
+| Эндоскелет / Endoskeleton | Выиграть со счётом 20:0 или выше; у человека ровно 0 фрагов. Победа без forfeit, матч от 10 минут. |
+| Красный глаз / Red Eye | Точность рейлгана от 60% при минимум 20 выстрелах. Нужны полные счётчики попаданий и выстрелов. Победа без forfeit, матч от 10 минут. |
+| Без промаха / Perfect Sight | Попасть каждым из минимум 10 выстрелов рейлгана. Нужны полные счётчики попаданий и выстрелов. Победа без forfeit, матч от 10 минут. |
+| Осадная машина / Siege Engine | Сделать минимум 15 убийств ракетницей. Нужна полная статистика оружия. Победа без forfeit, матч от 10 минут. |
+| Стальной ливень / Steel Storm | Нанести минимум 2000 урона чейнганом. Нужна полная статистика оружия. Победа без forfeit, матч от 10 минут. |
+| Плазменное ядро / Plasma Core | Сделать минимум 10 убийств гипербластером. Нужна полная статистика оружия. Победа без forfeit, матч от 10 минут. |
+| Рельсовый протокол / Rail Protocol | На q2duel5 подобрать рейлган минимум 10 раз, не оставив человеку ни одного подбора. Выпавшие пушки тоже считаются. Нужна полная статистика подборов. Победа без forfeit, матч от 10 минут. |
+| Реактор под охраной / Reactor Lock | На ztn2dm3 взять минимум 3 меги, не отдав человеку ни одной. Нужна полная статистика подборов. Победа без forfeit, матч от 10 минут. |
+| Броневой завод / Armour Foundry | Взять минимум 10 красных арморов, человек берёт не больше 2. Нужна полная статистика подборов. Победа без forfeit, матч от 10 минут. |
+| Железная дисциплина / Iron Discipline | Сделать минимум 30 убийств без единого самоубийства. Нужна полная итоговая статистика. Победа без forfeit, матч от 10 минут. |
+| Перезагрузка / Reboot | Победить, уступая по ходу матча минимум 10 фрагов. Нужна подтверждённая история счёта. Победа без forfeit, матч от 10 минут. |
+| Последняя директива / Final Directive | Выиграть 5 матчей в овертайме без forfeit. Основное время каждого — не менее 10 минут. |
+| Все сектора захвачены / All Sectors Captured | Победить без forfeit на каждой из карт q2duel5, ztn2dm3, q2duel1 и q3t2. Каждый матч от 10 минут. |
+| Охотничья сеть / Hunter Network | Победить 5 людей с разными никами без forfeit. Каждый матч от 10 минут; разные ники не доказывают разные личности. |
+| Легион / Legion | Выиграть 100 матчей у людей без forfeit. Каждый матч от 10 минут. |
+
+Forfait/forfeit: техническая победа принадлежит боту, даже когда он уступал по
+счёту. «Мясной комбинат» проверяет реальный перевес перед сдачей, а не сам факт
+технической победы. «Терминатор», «Искусственный разум» и «Мясной комбинат» не
+имеют минимальной длительности; правила остальных указаны в таблице.
+
+Each award links to its bot owner and qualifying human-versus-bot matches.
+Evidence always displays the human : bot score order. Forfeit wins count only
+where the rule explicitly allows them. Missing dates prevent a confirmed
+chronological Terminator streak for that profile; cumulative awards still work.
+Missing weapon or pickup counters are never treated as zero. Repeated match IDs
+count once. Later losses do not revoke bot awards; corrected source data does.
+
+Artwork: 20 original 384×384 SVG emblems with distinct full-size subjects and
+silhouettes: a neural core, mechanical skull, explosion, sensor, weapons, armor,
+shield and other machine imagery. Shared steel and red accents unify the series.
+Checked at 32, 36, 80 and 152 px in both themes. Assets are under `public/achievements/bots/`. The reproducible generator is
+`tools/generate-bot-awards.mjs`. Existing 24 human WebP emblems and miniatures
+are unchanged. Nested assets are served with their actual image MIME type.
+
+The All / Humans / Machines filter is stored as `awardKind` in the URL. Bot
+badges appear in ratings, match cards and bot profiles; all link to the award.
+The catalog and profile identity maps remain separate for humans and bots.
+
+`node test/bot-awards-browser.mjs` starts an isolated ephemeral loopback service
+using the real app/assets and in-memory fixtures. It checks all 44 awards,
+all 20 machine icons, filters/URL/reload/Back, bot and human profiles, paginated
+evidence and match links, very small point awards and About the rating.
+Chromium/Firefox/WebKit, desktop/mobile, RU/EN, light/dark plus system switching;
+fixtures never enter MongoDB. `BOTSTATS_TEST_DIR` selects screenshots/results.

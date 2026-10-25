@@ -1,8 +1,9 @@
 import {botDifficulty,victoryDuration} from '../public/rating.js';
 import {sortRows} from '../public/sort.js';
+import {BOT_DEFINITIONS,computeBotAchievements} from './bot-achievements.js';
 
 export const MAP_POOL=Object.freeze(['q2duel5','ztn2dm3','q3t2']);
-export const ACHIEVEMENT_VERSION='achievements-v2';
+export const ACHIEVEMENT_VERSION='achievements-v3-bots';
 const definition=(id,ru,en,ruleRu,ruleEn,revocable=false)=>({id,name:{ru,en},description:{ru:ruleRu,en:ruleEn},revocable,icon:`achievements/${id}.webp`});
 // Kept on the server: the public catalog contains only unlocked achievements.
 export const DEFINITIONS=[
@@ -129,22 +130,22 @@ export function computeAchievements(input){
       Object.assign(p.awards.get('punching-bag'),{evidence:[...p.losses,...p.wins],metric:balance,losses:p.losses.length,wins:p.wins.length});
     }else p.awards.delete('punching-bag');
   }
-  return {players,matches};
+  return {players,bots:computeBotAchievements(rows,regulationSeconds),matches};
 }
 
 export function publicAchievements(index){
-  const items=DEFINITIONS.map(d=>({...d,holders:[...index.players.values()].filter(p=>p.awards.has(d.id)).map(p=>{
-    const a=p.awards.get(d.id);return {name:p.name,earnedAt:a.earnedAt,metric:a.metric,losses:a.losses,wins:a.wins};
+  const items=[...DEFINITIONS,...BOT_DEFINITIONS].map(d=>({...d,holders:[...(d.audience==='bot'?index.bots:index.players).values()].filter(p=>p.awards.has(d.id)).map(p=>{
+    const a=p.awards.get(d.id);return {name:p.name,kind:d.audience==='bot'?'bot':'human',earnedAt:a.earnedAt,metric:a.metric,losses:a.losses,wins:a.wins};
   }).sort((a,b)=>(a.earnedAt||'9999').localeCompare(b.earnedAt||'9999')||a.name.localeCompare(b.name))})).filter(d=>d.holders.length);
   return {version:ACHIEVEMENT_VERSION,mapPool:MAP_POOL,items};
 }
 
 export function achievementDetail(index,id,query={}){
   const achievement=publicAchievements(index).items.find(x=>x.id===id);if(!achievement)return null;
-  const name=String(query.player||''),award=index.players.get(name)?.awards.get(id);
+  const name=String(query.player||''),award=(achievement.audience==='bot'?index.bots:index.players).get(name)?.awards.get(id);
   const limit=20;
   const ids=award?.evidence||[];
-  const columns={date:m=>m.startedAt,map:m=>m.map,bot:m=>m.bot,score:m=>m.score,duration:m=>m.durationSeconds};
+  const columns={date:m=>m.startedAt,map:m=>m.map,bot:m=>achievement.audience==='bot'?m.human:m.bot,score:m=>m.score,duration:m=>m.durationSeconds};
   const key=Object.hasOwn(columns,query.sort_award_evidence)?query.sort_award_evidence:'date';
   const direction=query.dir_award_evidence==='desc'?'desc':'asc';
   const evidence=sortRows(ids.map(x=>index.matches.get(x)),columns[key],direction,query.lang==='en'?'en':'ru');

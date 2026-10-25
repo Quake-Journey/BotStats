@@ -58,9 +58,9 @@ test('skill comes from name changes, has complete intervals, and ignores repeate
   const {c,event,frame}=scene();frame(135000,'David-X[150]',[3,1]);frame(200000,'David-X[150]',[4,1]);frame(300000,'David-X[200]',[5,1]);event('print',{time_ms:300000,level:2,text:'David-X[200] wins, 5 to 1.\n'});
   const p=summarize(c,meta).matches[0].participants[0];assert.equal(p.skillVariable,true);assert.deepEqual(p.skillTimeline,[{fromMs:0,toMs:135000,value:200},{fromMs:135000,toMs:300000,value:150}]);
 });
-test('restart keeps the pre-reset score, not zero and not a penalty',()=>{
+test('restart forfeits the human and keeps the pre-reset score',()=>{
   const {c,event,frame}=scene();frame(30000,'David-X[200]',[4,0]);event('print',{time_ms:45000,level:3,text:'Restarting the match...\n'});event('configstring',{time_ms:45000,index:1574,text:'Countdown'});frame(45001,'David-X[200]',[0,0]);
-  const m=summarize(c,meta).matches[0];assert.deepEqual(m.participants.map(p=>p.score),[4,0]);assert.equal(m.status,'interrupted');assert.equal(m.winnerIndex,null);
+  const m=summarize(c,meta).matches[0];assert.deepEqual(m.participants.map(p=>p.score),[4,0]);assert.equal(m.status,'forfeit');assert.equal(m.winnerIndex,0);assert.equal(m.forfeitBy,'q');assert.equal(m.endReason,'restart');
 });
 test('forfeit counts as losing even when the departing player led on score',()=>{
   const {c,event,frame}=scene();frame(290000,'David-X[200]',[3,10]);event('print',{time_ms:300000,level:2,text:'David-X[200] wins by forfeit!\n'});
@@ -177,4 +177,42 @@ test('disconnect placeholder does not replace the human identity in the forfeit 
   event('configstring',{time_ms:295000,index:1569,text:'Player 2'});frame(295000,'David-X[200]',[3,10]);
   event('print',{time_ms:300000,level:2,text:'David-X[200] wins by forfeit!\n'});
   const m=summarize(c,meta).matches[0];assert.equal(m.participants[1].name,'q');assert.equal(m.forfeitBy,'q');assert.deepEqual(m.participants.map(p=>p.score),[3,10]);
+});
+
+
+test('restart/abort/map votes forfeit a leading human despite a normal score announcement',()=>{
+ for(const [text,reason]of [['Restarting the match...\n','restart'],['Match aborted.\n','abort'],['Match interrupted by vote: map change to q3t2.\n','map_change'],['Match interrupted by map vote. Match ended.\n','map_change'],['New map: q3t2\n','map_change']]){
+  const {c,event,frame}=scene();frame(299900,'David-X[200]',[3,10]);
+  event('print',{time_ms:300000,level:text.startsWith('Match interrupted')?2:3,text});
+  if(reason!=='restart')event('print',{time_ms:300000,level:2,text:'q wins, 10 to 3.\n'});
+  const m=summarize(c,meta).matches[0];
+  assert.equal(m.status,'forfeit',reason);assert.equal(m.winnerIndex,0);assert.equal(m.forfeitBy,'q');assert.equal(m.endReason,reason);
+  assert.deepEqual(m.participants.map(p=>p.score),[3,10]);assert.ok(m.events.some(e=>e.text===text.trim()));
+ }
+});
+test('restart after a completed result never revokes a normal win; following match is independent',()=>{
+ const {c,event,frame}=scene();frame(300000,'David-X[200]',[3,10]);event('print',{time_ms:300000,level:2,text:'q wins, 10 to 3.\n'});
+ event('print',{time_ms:320000,level:3,text:'Restarting the match...\n'});event('configstring',{time_ms:320000,index:1574,text:'Countdown'});frame(320000,'David-X[200]',[0,0]);
+ event('print',{time_ms:332000,level:2,text:'Fight!\n'});event('configstring',{time_ms:332000,index:1574,text:'Match'});frame(332000,'David-X[200]',[0,0]);frame(340000,'David-X[200]',[1,0]);
+ const ms=summarize(c,meta).matches;assert.equal(ms.length,2);assert.equal(ms[0].status,'completed');assert.equal(ms[0].winnerIndex,1);assert.equal(ms[1].status,'interrupted');
+});
+test('warmup aborts, failed votes and chat do not create technical losses',()=>{
+ const {c,event,frame}=scene();frame(100000,'David-X[200]',[3,10]);
+ for(const text of ['q: Match aborted.\n','q: Restarting the match...\n','q: New map: q3t2\n','q started a vote: restart the match\n','Vote failed!\n','Countdown aborted!\n'])event('print',{time_ms:110000,level:3,text});
+ assert.equal(summarize(c,meta).matches[0].status,'interrupted');
+ const warm=new Collector();warm.accept({kind:'print',level:3,time_ms:100,text:'Match aborted.\n'});assert.equal(summarize(warm,meta).matches.length,0);
+});
+test('human departure is a forfeit, a reconnect pause or spectator departure is not',()=>{
+ for(const action of ['q disconnected\n',"q left team 'q'\n"]){
+  const {c,event,frame}=scene();frame(299900,'David-X[200]',[3,10]);event('print',{time_ms:300000,level:2,text:action});
+  const m=summarize(c,meta).matches[0];assert.equal(m.status,'forfeit');assert.equal(m.forfeitBy,'q');assert.equal(m.winnerIndex,0);
+ }
+ for(const resume of [false,true]){
+  const {c,event,frame}=scene();frame(100000,'David-X[200]',[3,10]);event('print',{time_ms:101000,level:2,text:'q disconnected\n'});
+  if(resume){event('print',{time_ms:120000,level:2,text:'Fight!\n'});frame(121000,'David-X[200]',[4,10]);}
+  else event('print',{time_ms:101000,level:3,text:'q disconnected and has 30 seconds to reconnect.\n'});
+  // Reconnect pause text at PRINT_CHAT is present in raw collector prints.
+  const m=summarize(c,meta).matches[0];assert.equal(m.status,'interrupted');
+ }
+ const {c,event,frame}=scene();frame(290000,'David-X[200]',[3,10]);event('print',{time_ms:300000,level:2,text:'spectator disconnected\n'});assert.equal(summarize(c,meta).matches[0].status,'interrupted');
 });

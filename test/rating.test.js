@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {aggregateMatches,filters,periodBounds} from '../src/store.js';
-import {matchPoints,victoryPoints,victoryDuration,botDifficulty,rankParticipants,rankMaps,ratingDetails} from '../public/rating.js';
+import {matchPoints,victoryPoints,victoryDuration,botDifficulty,rankParticipants,rankMaps,ratingDetails,botLossPenalty} from '../public/rating.js';
 function game(map,status,winnerIndex,score=[5,3]){return {map,status,winnerIndex,statsComplete:true,durationSeconds:600,participants:[{name:'q',isBot:false,score:score[0],stats:{kills:score[0],deaths:score[1],damageDealt:500}},{name:'David-X[200]',profile:'David-X',isBot:true,score:score[1],stats:{kills:score[1],deaths:score[0],damageDealt:400}}]};}
 test('independent human/bot policies; leading forfeiter score and per-map averages',()=>{
   const s=aggregateMatches([game('q2duel5','completed',0),game('q2duel5','completed',1,[2,6]),game('ztn2dm3','forfeit',1,[10,3]),game('ztn2dm3','interrupted',null,[4,1])]);
   const p=s.players.find(p=>p.name==='q');assert.equal(p.points,4);assert.equal(p.losses,2);assert.equal(p.normalLosses,1);assert.equal(p.forfeits,1);assert.equal(p.matches,4);assert.equal(p.finished,3);assert.equal(p.pointsPerMatch,4/3);assert.equal(p.averageScore,21/4);assert.equal(p.averageFragDifference,2);assert.equal(p.averageDeaths,13/4);
   assert.equal(s.byMap.find(m=>m.map==='q2duel5').players.find(p=>p.name==='q').points,9);
   assert.equal(s.byMap.find(m=>m.map==='ztn2dm3').players.find(p=>p.name==='q').points,-5);
-  const b=s.players.find(p=>p.isBot);assert.equal(b.points,1);assert.equal(b.forfeitWins,1);assert.equal(b.normalWins,1);
+  const b=s.players.find(p=>p.isBot);assert.equal(b.points,14);assert.equal(b.forfeitWins,1);assert.equal(b.normalWins,1);
 });
-test('forfeit bot points use the actual score, including a tie, never the technical winner',()=>{
-  for(const [score,points]of [[[2,8],1],[[8,2],0],[[4,4],0]]){
+test('forfeit bot rewards use the confirmed winner and not the score at surrender',()=>{
+  for(const [score,points]of [[[2,8],5],[[8,2],5],[[4,4],5]]){
     const m=game('q3t2','forfeit',1,score);assert.equal(matchPoints(m,1),points);assert.equal(matchPoints(m,0),-5);
   }
   assert.equal(matchPoints(game('q3t2','forfeit',0),0),0);
@@ -20,7 +20,7 @@ test('forfeit bot points use the actual score, including a tie, never the techni
 test('overtime wins/losses are separate from forfeits and award ordinary points',()=>{
   const rows=[{...game('q3t2','completed',0,[9,8]),overtime:true},{...game('q3t2','forfeit',1,[9,10]),overtime:true}];
   const s=aggregateMatches(rows),p=s.players.find(p=>!p.isBot),b=s.players.find(p=>p.isBot);
-  assert.equal(s.overtimeMatches,2);assert.equal(p.overtimeWins,1);assert.equal(b.overtimeLosses,1);assert.equal(b.overtimeWins,0);assert.equal(p.overtimeForfeits,1);assert.equal(p.points,5);assert.equal(b.points,0);
+  assert.equal(s.overtimeMatches,2);assert.equal(p.overtimeWins,1);assert.equal(b.overtimeLosses,1);assert.equal(b.overtimeWins,0);assert.equal(p.overtimeForfeits,1);assert.equal(p.points,5);assert.equal(b.points,4);
 });
 test('rating periods use inclusive MSK dates and carry across month/year boundaries',()=>{
   const now=new Date('2026-12-31T21:30:00Z');
@@ -61,35 +61,35 @@ test('duration uses game clock including overtime, never recording pauses or mis
   for(const duration of [null,NaN,-1,0]){m.durationSeconds=duration;m.timelineDurationMs=null;assert.equal(matchPoints(m,0),null);}
 });
 
-test('short wins earn zero even with missing skill; duration never changes loss or bot policies',()=>{
+test('short human wins earn zero; bot wins use duration while human losses remain unchanged',()=>{
   const short=skilled('David-X',200);short.durationSeconds=60;short.participants[1].skillTimeline[0].fromMs=1000;
   assert.equal(botDifficulty(short).known,false);assert.equal(matchPoints(short,0),0);
   assert.equal(aggregateMatches([short]).players.find(p=>!p.isBot).unscoredWins,0);
   const m=skilled('David-X',100,1);m.durationSeconds=60;
-  assert.equal(matchPoints(m,0),-2);assert.equal(matchPoints(m,1),2);
+  assert.equal(matchPoints(m,0),-2);assert.equal(matchPoints(m,1),.05);
   m.durationSeconds=null;assert.equal(matchPoints(m,0),-2);
-  m.status='forfeit';m.participants[1].score=10;assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),1);
-  m.participants[0].score=20;assert.equal(matchPoints(m,1),0);
+  m.status='forfeit';m.participants[1].score=10;assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),2.5);
+  m.participants[0].score=20;assert.equal(matchPoints(m,1),2.5);
 });
 test('skill weights use standard 200, Human 100 and GOD 250 above the reference',()=>{
   for(const [profile,skill,k,win,loss,botWin,botLoss]of [
-    ['Noob-X',50,.25,2.5,-4,2,-1],['David-X',100,.5,5,-2,2,-1],
-    ['David-X',200,1,10,-1,2,-1],['Human-X',100,1,10,-1,2,-1],['GOD-X',250,1.25,12.5,-.8,2,-1]]){
-    const m=skilled(profile,skill);assert.equal(botDifficulty(m).factor,k);assert.equal(matchPoints(m,0),win);assert.equal(matchPoints(m,1),botLoss);
+    ['Noob-X',50,.25,2.5,-4,2.5,-0.2537688442211055],['David-X',100,.5,5,-2,5,-0.5025125628140703],
+    ['David-X',200,1,10,-1,10,-1],['Human-X',100,1,10,-1,10,-1],['GOD-X',250,1.25,12.5,-.8,10,-1]]){
+    const m=skilled(profile,skill);assert.equal(botDifficulty(m).factor,k);assert.equal(matchPoints(m,0),win);assert.ok(Math.abs(matchPoints(m,1)-botLoss)<1e-12);
     m.winnerIndex=1;assert.equal(matchPoints(m,0),loss);assert.equal(matchPoints(m,1),botWin);
   }
 });
 test('skill is weighted by active duration before applying inverse loss, not by change count or final skill',()=>{
   const m=skilled('David-X',200),b=m.participants[1];b.skillVariable=true;b.skillTimeline=[{fromMs:0,toMs:300000,value:50},{fromMs:300000,toMs:600000,value:200}];
-  assert.equal(botDifficulty(m).averageSkill,125);assert.equal(botDifficulty(m).factor,.625);assert.equal(matchPoints(m,0),6.25);assert.equal(matchPoints(m,1),-1);
-  m.winnerIndex=1;assert.equal(matchPoints(m,0),-1.6);assert.equal(matchPoints(m,1),2);
+  assert.equal(botDifficulty(m).averageSkill,125);assert.equal(botDifficulty(m).factor,.625);assert.equal(matchPoints(m,0),6.25);assert.ok(Math.abs(matchPoints(m,1)+0.6268844221105527)<1e-12);
+  m.winnerIndex=1;assert.equal(matchPoints(m,0),-1.6);assert.equal(matchPoints(m,1),6.25);
   b.skillTimeline=[{fromMs:0,toMs:540000,value:200},{fromMs:540000,toMs:600000,value:50}];assert.equal(botDifficulty(m).averageSkill,185);
   b.skillTimeline=[{fromMs:0,toMs:599000,value:50},{fromMs:599000,toMs:600000,value:200}];assert.equal(botDifficulty(m).averageSkill,50.25);
   m.recordedSeconds=1000;assert.equal(botDifficulty(m).durationMs,600000,'Wall-clock pauses do not dilute active time');
 });
 test('forfeit stays more costly than any ordinary human loss, while missing skill is not guessed',()=>{
   for(const skill of [1,20,50,100,200]){
-    const m=skilled('David-X',skill,1);const normal=matchPoints(m,0);assert.ok(normal>=-4);m.status='forfeit';assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),0);m.participants[1].score=20;assert.equal(matchPoints(m,1),1);
+    const m=skilled('David-X',skill,1);const normal=matchPoints(m,0);assert.ok(normal>=-4);m.status='forfeit';assert.equal(matchPoints(m,0),-5);assert.equal(matchPoints(m,1),5*skill/200);m.participants[1].score=20;assert.equal(matchPoints(m,1),5*skill/200);
   }
   const missing=skilled('David-X',200);missing.participants[1].skillTimeline[0].fromMs=1000;
   assert.equal(botDifficulty(missing).known,false);assert.equal(matchPoints(missing,0),null);
@@ -100,7 +100,7 @@ test('forfeit stays more costly than any ordinary human loss, while missing skil
 });
 test('aggregates retain fractional awards rather than rounding each match',()=>{
   const m=skilled('David-X',125),s=aggregateMatches([m,m]),human=s.players.find(x=>!x.isBot),bot=s.players.find(x=>x.isBot);
-  assert.equal(human.points,12.5);assert.equal(bot.points,-2);assert.equal(bot.pointsPerMatch,-1);
+  assert.equal(human.points,12.5);assert.ok(Math.abs(bot.points+1.2537688442211057)<1e-12);assert.equal(bot.pointsPerMatch,bot.points/2);
 });
 
 test('Victory rating preserves skill awards but never subtracts losses or counts forfeits',()=>{
@@ -147,4 +147,28 @@ test('activity does not require skill or a rated outcome; unknown winning skill 
   assert.equal(s.completedMatches,2);assert.equal(q.completedMatches,2);
   assert.equal(q.victoryPoints,0);assert.equal(q.unscoredWins,1);
   assert.equal(victoryPoints(unknown,0),null);assert.equal(victoryPoints(changed,0),null);
+});
+
+
+test('bot loss ranges from one hundredth at skill 1 to one at its own maximum',()=>{
+ for(const [profile,max]of [['David-X',200],['Polosatiy-X',200],['GOD-X',250],['Human-X',100]]){
+  let previous=0;
+  for(let skill=1;skill<=max;skill++){
+   const m=skilled(profile,skill),penalty=matchPoints(m,1);
+   assert.ok(penalty<previous);assert.ok(penalty>=-1&&penalty<=-.01);previous=penalty;
+   if(skill===1)assert.equal(penalty,-.01);
+   if(skill===max)assert.equal(penalty,-1);
+   assert.equal(botLossPenalty(m).maximum,max);
+   m.winnerIndex=1;assert.ok(Math.abs(matchPoints(m,1)-10*skill/max)<1e-12);
+   m.status='forfeit';assert.ok(Math.abs(matchPoints(m,1)-5*skill/max)<1e-12);m.participants[1].score=10;assert.ok(Math.abs(matchPoints(m,1)-5*skill/max)<1e-12);
+  }
+ }
+});
+test('variable bot loss weights active time, preserves raw fractions in aggregates and rejects incomplete history',()=>{
+ const m=skilled('GOD-X',250);m.participants[1].skillTimeline=[{fromMs:0,toMs:150000,value:1},{fromMs:150000,toMs:600000,value:250}];
+ assert.ok(Math.abs(matchPoints(m,1)-(-.01*.25-1*.75))<1e-12);
+ const s=aggregateMatches([m,m]).players.find(p=>p.isBot);assert.equal(s.points,2*matchPoints(m,1));assert.equal(s.normalLosses,2);
+ assert.equal(ratingDetails(m).botLoss.points,matchPoints(m,1));
+ m.participants[1].skillTimeline[0].fromMs=1;assert.equal(matchPoints(m,1),null);assert.equal(botLossPenalty(m).known,false);
+ m.winnerIndex=1;assert.equal(matchPoints(m,1),null,'Missing skill history prevents a weighted win award');
 });

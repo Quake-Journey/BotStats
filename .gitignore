@@ -35,6 +35,7 @@ tools/*
 !tools/run-production.mjs
 !tools/Install-Autostart.ps1
 !tools/check-public-tree.py
+!tools/generate-bot-awards.mjs
 
 # Python caches
 __pycache__/

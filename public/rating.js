@@ -1,10 +1,10 @@
 // One policy for both API aggregation and the browser's per-match explanation.
 export const ratingPolicy = Object.freeze({
-  version: 'victory-duration-skill-v3',
+  version: 'bot-win-duration-skill-v5',
   skill: Object.freeze({standardReference:200, humanReference:100, inverseWeightCap:4}),
   duration: Object.freeze({minimumSeconds:120, maximumSeconds:600, minimumPoints:1, maximumPoints:10}),
   human: Object.freeze({win:10, loss:-1, forfeitWin:0, forfeitLoss:-5, draw:0}),
-  bot: Object.freeze({win:2, loss:-1, forfeitLeading:1, forfeitNotLeading:0, draw:0})
+  bot: Object.freeze({win:10, minimumWin:0.1, forfeitWin:5, minimumForfeitWin:0.05, loss:-1, minimumLossFactor:0.01, draw:0})
 });
 
 // durationSeconds is the parser's full active duration, including overtime.
@@ -40,7 +40,12 @@ export function botDifficulty(match) {
     const named=bot.name.match(/(?:\[(\d+)\]|>(\d+))$/)?.slice(1).find(x=>x!==undefined);
     const value=bot.skill??(named===undefined?null:Number(named));
     if(!valid(value))return unknown('unknown_skill');
-    return {known:true,averageSkill:value,factor:value/reference,reference,durationMs,source:'constant_skill',intervals:[]};
+    return {known:true,averageSkill:value,factor:value/reference,reference,maximum,durationMs,source:'constant_skill',intervals:[]};
+  }
+  if(durationMs===0&&match.startObserved===true&&!bot.skillVariable&&
+    intervals.every(x=>x.fromMs===0&&x.toMs===0&&valid(x.value))&&new Set(intervals.map(x=>x.value)).size===1){
+    const value=intervals[0].value;
+    return {known:true,averageSkill:value,factor:value/reference,reference,maximum,durationMs,source:'instant_skill',intervals};
   }
   if(!Number.isFinite(durationMs)||durationMs<=0)return unknown('unknown_duration');
   if(intervals.some(x=>!Number.isFinite(x.fromMs)||!Number.isFinite(x.toMs)||x.fromMs<0||x.toMs<x.fromMs))return unknown('invalid_skill_history');
@@ -52,7 +57,17 @@ export function botDifficulty(match) {
   }
   if(cursor!==durationMs)return unknown('incomplete_skill_history');
   const averageSkill=weighted/durationMs;
-  return {known:true,averageSkill,factor:averageSkill/reference,reference,durationMs,source:'time_weighted',intervals};
+  return {known:true,averageSkill,factor:averageSkill/reference,reference,maximum,durationMs,source:'time_weighted',intervals};
+}
+
+// Bot losses use each profile's own maximum, independently of the human K.
+// Linear in skill, so weighting by active time also weights the loss fairly.
+export function botLossPenalty(match) {
+  const difficulty=botDifficulty(match);
+  if(!difficulty.known)return {known:false,reason:difficulty.reason};
+  const {averageSkill,maximum}=difficulty,minimum=ratingPolicy.bot.minimumLossFactor;
+  const factor=minimum+(1-minimum)*(averageSkill-1)/(maximum-1);
+  return {known:true,averageSkill,maximum,factor,points:ratingPolicy.bot.loss*factor};
 }
 
 export function resultKnown(match) {
@@ -60,16 +75,31 @@ export function resultKnown(match) {
     (match.status==='forfeit' && Number.isInteger(match.winnerIndex)));
 }
 
+// Each bot's own maximum is 100 / 200 / 250. The actual active duration,
+// including overtime, sets the reward; early forfeits still earn a small plus.
+export function botWinAward(match) {
+  if(match.startObserved===false)return {known:false,reason:'partial_duration'};
+  const seconds=Number.isFinite(match.durationSeconds)?match.durationSeconds:
+    match.startObserved===true&&Number.isFinite(match.timelineDurationMs)?match.timelineDurationMs/1000:null;
+  if(!Number.isFinite(seconds)||seconds<0)return {known:false,reason:'unknown_duration'};
+  const d=botDifficulty(match);if(!d.known)return {known:false,reason:d.reason};
+  const forfeit=match.status==='forfeit',p=ratingPolicy.bot,t=ratingPolicy.duration;
+  const minimum=forfeit?p.minimumForfeitWin:p.minimumWin,maximum=forfeit?p.forfeitWin:p.win;
+  const progress=Math.max(0,Math.min(1,(seconds-t.minimumSeconds)/(t.maximumSeconds-t.minimumSeconds)));
+  const basePoints=minimum+(maximum-minimum)*progress,skillFactor=d.averageSkill/d.maximum;
+  return {known:true,seconds,forfeit,basePoints,skillFactor,averageSkill:d.averageSkill,maximumSkill:d.maximum,points:basePoints*skillFactor};
+}
+
 export function matchPoints(match,index) {
   if(!resultKnown(match))return null;
-  const p=match.participants[index],other=match.participants[1-index];
+  const p=match.participants[index];
   const policy=p.isBot?ratingPolicy.bot:ratingPolicy.human;
   if(match.status==='forfeit') {
-    if(p.isBot)return p.score>other.score?policy.forfeitLeading:policy.forfeitNotLeading;
+    if(p.isBot)return match.winnerIndex===index?(botWinAward(match).points??null):0;
     return match.winnerIndex===index?policy.forfeitWin:policy.forfeitLoss;
   }
   if(match.winnerIndex===null)return policy.draw;
-  if(p.isBot)return match.winnerIndex===index?policy.win:policy.loss;
+  if(p.isBot)return match.winnerIndex===index?(botWinAward(match).points??null):(botLossPenalty(match).points??null);
   const won=match.winnerIndex===index;
   const duration=won?victoryDuration(match):null;
   if(won&&!duration.known)return null;
@@ -99,5 +129,5 @@ export function rankMaps(rows){
 }
 
 export function ratingDetails(match){
-  return {version:ratingPolicy.version,difficulty:botDifficulty(match),duration:victoryDuration(match),points:match.participants.map((_,i)=>matchPoints(match,i)),victoryPoints:match.participants.map((_,i)=>victoryPoints(match,i))};
+  return {version:ratingPolicy.version,difficulty:botDifficulty(match),botLoss:botLossPenalty(match),botWin:botWinAward(match),duration:victoryDuration(match),points:match.participants.map((_,i)=>matchPoints(match,i)),victoryPoints:match.participants.map((_,i)=>victoryPoints(match,i))};
 }

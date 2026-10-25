@@ -8,7 +8,7 @@ const series=(n,options={})=>Array.from({length:n},(_,i)=>game(i,options));
 
 test('all 24 independent award definitions can be earned, locked metadata stays hidden',()=>{
   const catalog=publicAchievements(computeAchievements(collection()));
-  assert.equal(catalog.items.length,24);assert.equal(new Set(DEFINITIONS.map(x=>x.id)).size,24);
+  assert.equal(catalog.items.filter(a=>a.audience!=='bot').length,24);assert.equal(new Set(DEFINITIONS.map(x=>x.id)).size,24);
   assert.deepEqual(publicAchievements(computeAchievements([])).items,[]);
   assert.equal(achievementDetail(computeAchievements([]),'death-breath'),null);
 });

@@ -67,6 +67,7 @@ export async function createService(config) {
   api.get('/api/matches/:id',async(req,res,next)=>{try{const m=await store.match(req.params.id);if(!m)return res.status(404).json({error:'Not found'});res.json({...m,scoreHistory:completeScoreHistory(m)});}catch(e){next(e);}});
   api.get('/api/facets',async(req,res,next)=>{try{res.json(await store.facets());}catch(e){next(e);}});
   api.get('/api/summary',async(req,res,next)=>{try{res.json(await store.summary(req.query));}catch(e){next(e);}});
+  api.get('/api/victims',async(req,res,next)=>{try{res.json(await store.victims(req.query));}catch(e){next(e);}});
   api.get('/api/dynamics',async(req,res,next)=>{try{res.setHeader('Cache-Control','no-cache');res.json(await store.dynamics(req.query));}catch(e){next(e);}});
   api.get('/api/achievements',async(req,res,next)=>{try{res.setHeader('Cache-Control','no-cache');res.json(await store.achievements());}catch(e){next(e);}});
   api.get('/api/achievements/:id',async(req,res,next)=>{try{const value=await store.achievement(req.params.id,req.query);if(!value)return res.status(404).json({error:'Not found'});res.setHeader('Cache-Control','no-cache');res.json(value);}catch(e){next(e);}});
@@ -75,7 +76,7 @@ export async function createService(config) {
     if(!['GET','HEAD'].includes(req.method))return next();
     const name=req.path.slice(1),content=assets.files.get(name);
     if(!content)return res.sendStatus(404);
-    res.setHeader('Cache-Control','no-cache');res.type(name);res.send(content);
+    res.setHeader('Cache-Control','no-cache');res.type(path.extname(name));res.send(content);
   });
   // Legacy URLs remain readable for already open tabs, but new HTML never uses
   // them. Changing Cache-Control alone cannot invalidate a previously fresh cache.

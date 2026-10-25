@@ -41,6 +41,9 @@ test('API: auth, validation, durable publication, dedupe, download and filters',
     assert.ok([...markup.matchAll(/(?:src|href)="(\.\/assets\/[^\"]+)"/g)].every(m=>m[1].startsWith(assetRoot)),'Every initial asset has the same revision');
     const moduleURL=apiUrl+'/'+assetRoot.slice(2)+'app.js';const appSource=await(await fetch(moduleURL)).text();
     for(const match of appSource.matchAll(/from ['"](\.\/[^'"]+)['"]/g))assert.equal((await fetch(new URL(match[1],moduleURL))).status,200,'Relative dependency in same revision');
+    for(const [name,type]of [['achievements/bots/skynet.svg','image/svg+xml'],['achievements/death-breath.webp','image/webp']]){
+      const image=await fetch(apiUrl+'/'+assetRoot.slice(2)+name);assert.equal(image.status,200,name);assert.equal(image.headers.get('content-type').split(';')[0],type,name);
+    }
     const css=await fetch(apiUrl+'/assets/style.css');assert.equal(css.headers.get('cache-control'),'no-cache');
     assert.equal((await fetch(apiUrl+'/assets/../../local.json')).status,404);
     const summary=await(await fetch(apiUrl+'/api/summary')).json();assert.ok(summary.botWins>=1);assert.ok(summary.players.find(p=>p.name==='pp').losses>=1);

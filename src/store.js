@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 import {computeAchievements,publicAchievements,achievementDetail} from './achievements.js';
 import {buildDynamics} from './dynamics.js';
+import {buildBotVictims} from './bot-victims.js';
 import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
 
 const escapeRegex=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -117,6 +118,10 @@ export async function openStore(config) {
     async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});awardRevision++;awardCache=null;},
     async achievements(){return publicAchievements(await awardIndex());},
     async achievement(id,query){return achievementDetail(await awardIndex(),id,query);},
+    async victims(query){
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,status:1,winnerIndex:1,ratingExcluded:1,'participants.isBot':1,'participants.name':1,'participants.profile':1,'participants.score':1}}]).toArray();
+      return buildBotVictims(rows);
+    },
     async dynamics(query){
       // This view always includes all skills and technical results. Unrelated
       // rating-tab filters in a shared URL cannot silently remove forfeits.

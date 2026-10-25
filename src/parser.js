@@ -5,13 +5,19 @@ import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 
-export const PARSER_VERSION = '0.1.5';
+export const PARSER_VERSION = '0.1.6';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
 const baseName = name => name.replace(/(?:\[\d+\]|>\d+)$/, '');
 const skillInName = name => Number(name.match(/(?:\[(\d+)\]|>(\d+))$/)?.slice(1).find(Boolean)) || null;
 const demoError=(code,message)=>Object.assign(new Error(message),{code});
+// These exact messages are emitted by the mod at PRINT_CHAT too. Player chat
+// includes a name prefix and must not be accepted as a control/result message.
+const controlReason=text=>/^Restarting the match\.\.\.\s*$/.test(text)?'restart':
+  /^Match aborted\.\s*$/.test(text)?'abort':
+  /^(?:Match interrupted by (?:vote: map change to [A-Za-z0-9_-]+\.|map vote\. Match ended\.)|New map: [A-Za-z0-9_-]+)\s*$/.test(text)?'map_change':null;
+
 
 export function recordingDateFromName(name, utcOffset='+03:00') {
   const current=name.match(/^(\d{4}-\d\d-\d\d)_(\d\d)-(\d\d)-(\d\d)_/);
@@ -168,14 +174,17 @@ export function overtimeState(prints,frames,start,end,gameTime) {
 export function summarize(collector, meta) {
   const matches=[];
   for(const s of collector.parts.values()) {
-    const prints=s.prints.filter(p=>p.level!==3 || p.text==='Restarting the match...\n');
+    const prints=s.prints.filter(p=>p.level!==3 || controlReason(p.text)!==null);
     const resets=prints.filter(p=>/^Restarting the match/.test(p.text)).map(p=>p.timeMs);
     let completed=false;
-    for(const p of prints){if(p.text.includes('MATCH STATS')||/^.+? wins(?:,| by )/.test(p.text))completed=true;if(completed&&p.text.trim()==='Fight!'){resets.push(p.timeMs);completed=false;}}
+    for(const p of prints){if(p.text.includes('MATCH STATS')||/^.+? wins(?:,| by )/.test(p.text)||controlReason(p.text))completed=true;if(completed&&p.text.trim()==='Fight!'){resets.push(p.timeMs);completed=false;}}
     const bounds=[0,...[...new Set(resets)].filter(t=>t>0).sort((a,b)=>a-b),s.end+1];
     for(let k=0;k<bounds.length-1;k++) {
       let start=bounds[k],end=bounds[k+1];
       const ps=prints.filter(p=>p.timeMs>=start && p.timeMs<end);
+      // Restart is the boundary of the old match, not the result of the new one.
+      const restart=prints.find(p=>p.timeMs===end&&controlReason(p.text)==='restart');
+      if(restart)ps.push(restart);
       if(k>0) {
         const fight=ps.find(p=>p.text.trim()==='Fight!');
         if(!fight)continue; start=fight.timeMs;
@@ -202,7 +211,18 @@ export function summarize(collector, meta) {
       if(participants.length!==2 || participants.some(p=>!p.name) || participants.filter(p=>p.isBot).length!==1)continue;
       const ended=ps.find(p=>/Timelimit hit\. Match ended| wins, | wins by |Match drawn/i.test(p.text));
       const ff=ps.find(p=>/^.+? (?:wins by forfeit[!.]|(?:has )?forfeited(?: the match)?[!.])\s*$/i.test(p.text));
-      const status=ff || table?.forfeit ? 'forfeit' : ended ? 'completed' : 'interrupted';
+      const human=participants.find(p=>!p.isBot);
+      const interrupted=ps.find(p=>p.timeMs>=start&&(!ended||p.timeMs<=ended.timeMs)&&controlReason(p.text));
+      // A transient disconnect followed by a resume is not a forfeit. Prefer
+      // the explicit server result; a departure ending active play is final.
+      const departure=!ended&&!ff?ps.find(p=>p.level===2&&p.timeMs>start&&
+        (p.text.trim()===human.name+' disconnected'||p.text.trim().startsWith(human.name+" left team '"))&&
+        !fs.some(f=>f.timeMs>p.timeMs+1000&&f.teamNames.includes(human.name))&&
+        !s.prints.some(q=>q.timeMs>=p.timeMs&&q.timeMs<bounds[k+1]&&q.text.startsWith(human.name+' disconnected and has ')&&/ to reconnect\.\s*$/.test(q.text))):null;
+      const termination=interrupted||departure;
+      const status=ff || table?.forfeit || termination ? 'forfeit' : ended ? 'completed' : 'interrupted';
+      const endReason=interrupted?controlReason(interrupted.text):departure?'human_departure':status==='forfeit'?'server_forfeit':null;
+
       const legacy=!table&&ended?parseLegacyStats(ps.filter(p=>p.level===2&&p.timeMs>=ended.timeMs-200&&p.timeMs<=ended.timeMs+2000).map(p=>p.text).join('')):new Map();
       if(!table)for(const p of participants)p.stats=legacy.get(p.name)||null;
       const statsComplete=Boolean(table?.complete||(!table&&participants.every(p=>p.stats)));
@@ -214,7 +234,7 @@ export function summarize(collector, meta) {
         const winner=participants.findIndex(p=>p.name===announcedResult[1]);
         if(winner>=0){participants[winner].score=+announcedResult[2];participants[1-winner].score=+announcedResult[3];scoreSource='server_result';}
       }
-      end=tableTime??ended?.timeMs??(k<bounds.length-2?end:fs.at(-1)?.timeMs??end);
+      end=termination?.timeMs??tableTime??ended?.timeMs??(k<bounds.length-2?end:fs.at(-1)?.timeMs??end);
       // OTX_MvdBeginMatch runs AFTER broadcasting Fight. The native automatic
       // filename plus the initial 0:0/full-minute HUD identifies these starts
       // even when the earlier broadcast is absent from the recording.
@@ -275,19 +295,18 @@ export function summarize(collector, meta) {
       const stateHistory=participants.map(p=>({name:p.name,samples:fs.filter(f=>f.timeMs<=end && f.timeMs%1000<100 && baseName(f.name)===baseName(p.name)).map(f=>({timeMs:gameTime(f.timeMs),health:f.health,armor:f.armor}))}));
       const winnerMessage=ps.map(p=>p.text.match(/^(.+?) wins(?:,| by )/)).find(Boolean);
       const winnerName=winnerMessage?.[1];
-      const forfeiter=ff?.text.match(/^(.+?) (?:has )?forfeited/)?.[1];
-      const loserIndex=participants.findIndex(p=>p.name===forfeiter);
-      const winner=status==='interrupted'?null:winnerName?participants.findIndex(p=>p.name===winnerName):status==='forfeit'?(loserIndex>=0?1-loserIndex:null):participants[0].score===participants[1].score?null:participants[0].score>participants[1].score?0:1;
+      const winner=status==='forfeit'?participants.findIndex(p=>p.isBot):status==='interrupted'?null:winnerName?participants.findIndex(p=>p.name===winnerName):participants[0].score===participants[1].score?null:participants[0].score>participants[1].score?0:1;
       const botProfiles=[...new Set(fs.filter(f=>f.timeMs<=end).flatMap(f=>f.teamNames).filter(n=>botName(n||'')).map(baseName))];
       const ratingExcluded=botProfiles.length>1?'opponent_changed':null;
       matches.push({id:`${meta.sha256}-${s.id}-${k}`,segment:s.id,ordinal:k,map:table?.map||s.map||meta.originalName.split('_')[2],
         startedAt:meta.recordedAt?new Date(Date.parse(meta.recordedAt)+start).toISOString():null,
         startMs:start,endMs:end,timelineDurationMs:gameTime(end),recordedSeconds:Math.max(0,(end-start)/1000),durationSeconds,startObserved,startSource,
-        status,winnerIndex:winner<0?null:winner,forfeitBy:forfeiter||(status==='forfeit'&&winner!==null&&winner>=0?participants[1-winner].name:null),
+        status,winnerIndex:winner<0?null:winner,forfeitBy:status==='forfeit'?human.name:null,
+        ...(endReason?{endReason}:{}),
         scoreSource,statsComplete,statsFormat:table?'extended':legacy.size?'legacy':null,modVersion:s.version,
         ...extraTime,botProfiles,ratingExcluded,
         participants,scoreHistory,stateHistory,settingsChanges:changes,
-        events:ps.filter(p=>p.timeMs<=end && !p.text.includes('MATCH STATS') && (p.level===1||/forfeit| wins|Timelimit|Restarting|paused|resum|^Scores are tied|^Fight!|^OpenTDM-X: .* (?:style:|skill)/i.test(p.text))).map(p=>({timeMs:gameTime(p.timeMs),text:p.text.trim()})),
+        events:ps.filter(p=>p.timeMs<=end && !p.text.includes('MATCH STATS') && (p===termination||p.level===1||/forfeit| wins|Timelimit|Restarting|paused|resum|^Scores are tied|^Fight!|^OpenTDM-X: .* (?:style:|skill)/i.test(p.text))).map(p=>({timeMs:gameTime(p.timeMs),text:p.text.trim()})),
         warnings:[...(!startObserved?['partial_start']:[]),...(!statsComplete?['no_final_stats']:[]),...(!s.version?['unknown_mod_version']:[]),...(ratingExcluded?[ratingExcluded]:[])]});
     }
   }
