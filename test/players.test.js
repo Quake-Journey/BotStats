@@ -16,7 +16,7 @@ test('player directory includes every human, has its own sortable table and neve
   const html=playersPage(summary,{lang:'ru',params,link,badges:p=>`<span data-award="${p.name}"></span>`});
   assert.ok(html.includes('data-table="players"'));assert.ok(!html.includes('ranking-choices'));assert.ok(!html.includes('class="rank"'));
   for(const name of ['Winner','Only forfeit','No result','Loser'])assert.ok(html.includes(name));
-  assert.ok(!html.includes('David-X'));assert.equal((html.match(/data-sort-table="players"/g)||[]).length,8);
+  assert.ok(!html.includes('David-X'));assert.equal((html.match(/data-sort-table="players"/g)||[]).length,9);
   assert.ok(html.indexOf('>Loser</a>')<html.indexOf('>Winner</a>'));
   assert.ok(html.includes('match=d'));assert.ok(html.includes('profile=Loser'));assert.ok(html.includes('theme=dark'));
 });

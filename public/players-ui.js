@@ -1,4 +1,5 @@
 import {renderTable} from './tables.js';
+import {winCount,winConditionsColumn} from './count-context.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function playersPage(summary,{lang,params,link,badges}){
@@ -7,8 +8,9 @@ export function playersPage(summary,{lang,params,link,badges}){
   const rows=summary.players.filter(p=>!p.isBot).sort((a,b)=>a.name.localeCompare(b.name,lang));
   const columns=[
     {key:'name',label:ru?'Игрок':'Player',text:true,value:p=>p.name,render:p=>`<a class="player-directory-name" ${link({view:'players',profile:p.name,kind:'human',match:null,page:null})}>${esc(p.name)}</a>${badges(p)}`},
-    ...[['matches',ru?'Всего матчей':'Recorded games'],['normalWins',ru?'Победы':'Wins'],['normalLosses',ru?'Поражения без forfeit':'Losses without forfeits'],['forfeits','Forfeit'],['draws',ru?'Ничьи':'Draws'],['completedWinRate',ru?'Победы без forfeit, %':'Wins excluding forfeits, %']].map(([key,label])=>({key,label,value:p=>p[key],render:p=>num(p[key],key==='completedWinRate'?1:0)})),
-    {key:'lastGameAt',label:ru?'Последняя игра · МСК':'Last game · MSK',value:p=>p.lastGameAt,render:p=>p.lastGameAt&&p.lastGameMatchId?`<a class="player-directory-last" title="${ru?'Открыть матч':'Open match'}" ${link({view:'matches',match:p.lastGameMatchId,profile:null,kind:null,page:null})}>${esc(date(p.lastGameAt))} ↗</a>`:esc(date(p.lastGameAt))}
+    ...[['matches',ru?'Всего матчей':'Recorded games'],['normalWins',ru?'Победы':'Wins'],['normalLosses',ru?'Поражения без forfeit':'Losses without forfeits'],['forfeits','Forfeit'],['draws',ru?'Ничьи':'Draws'],['completedWinRate',ru?'Победы без forfeit, %':'Wins excluding forfeits, %']].map(([key,label])=>({key,label,value:p=>p[key],render:p=>key==='normalWins'?winCount(p,{lang}):num(p[key],key==='completedWinRate'?1:0)})),
+    {key:'lastGameAt',label:ru?'Последняя игра · МСК':'Last game · MSK',value:p=>p.lastGameAt,render:p=>p.lastGameAt&&p.lastGameMatchId?`<a class="player-directory-last" title="${ru?'Открыть матч':'Open match'}" ${link({view:'matches',match:p.lastGameMatchId,profile:null,kind:null,page:null})}>${esc(date(p.lastGameAt))} ↗</a>`:esc(date(p.lastGameAt))},
+    winConditionsColumn(lang)
   ];
   return `<div class="ranking-intro"><h2>${ru?'Игроки':'Players'}</h2><p>${ru?'Все участники выбранных матчей, включая игроков без побед. Открой профиль по нику или последний матч по дате.':'Everyone in the selected matches, including players without wins. Open a profile by name or the latest match by date.'}</p></div>`+
     (rows.length?renderTable('players',columns,rows,{params,lang,defaultKey:'name',defaultDir:'asc'}):`<div class="empty">${ru?'По этим условиям игроков пока нет.':'No players match these filters.'}</div>`)+

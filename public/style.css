@@ -128,6 +128,15 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 /* Emphasize the sortable win count above the compact, display-only recency. */
 .wins-info{display:inline-grid;grid-template-columns:max-content;align-items:center;justify-content:center;gap:2px;max-width:100%;vertical-align:middle}
 .wins-value{font-size:inherit;font-weight:700;line-height:1.45;font-variant-numeric:tabular-nums;color:var(--good)}
+.win-conditions{display:grid;gap:5px;font-size:15px;line-height:1.45;text-align:center;font-variant-numeric:tabular-nums}
+.win-condition-label{color:var(--muted)}
+.win-condition-value{color:var(--text);font-weight:650;white-space:nowrap}
+.completed-info{display:inline-grid;justify-items:center;gap:4px;max-width:100%;font-variant-numeric:tabular-nums}
+.completed-average{font-size:14px;font-weight:400;line-height:1.4;color:var(--muted)}
+.completed-average strong{font-weight:600;color:var(--text);white-space:nowrap}
+@media(min-width:1400px){.data-table th.win-conditions-cell{width:26%}}
+@media(max-width:1399px){.data-table td.win-conditions-cell{grid-column:1/-1}.win-conditions{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}}
+@media(max-width:800px){.win-conditions{grid-template-columns:1fr;gap:5px}.data-table[data-table=rating_victory] td.win-conditions-cell{grid-row:4}}
 .wins-history{display:grid;gap:0;font-size:11px;line-height:13px;font-variant-numeric:tabular-nums;text-align:center}
 .wins-history-line{white-space:nowrap}
 .wins-history-label{color:var(--muted)}

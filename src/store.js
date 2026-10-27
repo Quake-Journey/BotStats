@@ -2,7 +2,7 @@ import { MongoClient } from 'mongodb';
 import {computeAchievements,publicAchievements,achievementDetail} from './achievements.js';
 import {buildDynamics} from './dynamics.js';
 import {buildBotVictims} from './bot-victims.js';
-import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails } from '../public/rating.js';
+import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails, botDifficulty, victoryDuration } from '../public/rating.js';
 import {humanPerformance} from '../public/performance-rating.js';
 import {normalizeMatchResult} from '../public/match-result.js';
 import {matchResultStages} from './match-results.js';
@@ -50,14 +50,18 @@ export function filters(query,now=new Date()) {
 
 export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
   rows=rows.map(normalizeMatchResult);
-  const players=new Map(),humanGames=new Map();let humanWins=0,botWins=0,finished=0;
+  const players=new Map(),humanGames=new Map();let humanWins=0,botWins=0,finished=0,completedDurationSeconds=0,completedDurationMatches=0;
   for(const m of rows){
     const known=resultKnown(m),dateMs=Date.parse(m.startedAt),dated=Number.isFinite(dateMs)?new Date(dateMs).toISOString():null;
+    const duration=m.status==='completed'?victoryDuration(m):{known:false};
+    const difficulty=known&&m.status==='completed'&&m.winnerIndex!==null?botDifficulty(m):null;
+    const botPing=m.participants.find(p=>p.isBot)?.ping,humanPing=m.participants.find(p=>!p.isBot)?.ping;
+    if(duration.known){completedDurationSeconds+=duration.seconds;completedDurationMatches++;}
     if(known){finished++;if(m.winnerIndex!==null){if(m.participants[m.winnerIndex].isBot)botWins++;else humanWins++;}}
     for(let i=0;i<m.participants.length;i++){
       const p=m.participants[i],name=p.isBot?p.profile:p.name,key=`${p.isBot}:${name}`;
       if(!p.isBot){if(!humanGames.has(key))humanGames.set(key,[]);humanGames.get(key).push(m);}
-      if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0});
+      if(!players.has(key))players.set(key,{name,isBot:p.isBot,matches:0,finished:0,ratedMatches:0,wins:0,losses:0,draws:0,forfeits:0,forfeitWins:0,overtimeMatches:0,overtimeWins:0,overtimeLosses:0,overtimeForfeits:0,points:0,score:0,opponentScore:0,kills:0,deaths:0,damage:0,statsMatches:0,completedDurationSeconds:0,completedDurationMatches:0,winBotSkillTotal:0,winBotSkillMatches:0,winBotPingTotal:0,winBotPingMatches:0,winHumanPingTotal:0,winHumanPingMatches:0});
       const r=players.get(key);r.matches++;r.score+=p.score;r.opponentScore+=m.participants[1-i].score;
       // Match dates follow the same start timestamp shown in the match list.
       if(dated&&(!r.lastGameAt||dated>r.lastGameAt||(dated===r.lastGameAt&&String(m.id||'')>String(r.lastGameMatchId||'')))){
@@ -65,6 +69,18 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
       }
       if(dated&&known&&m.status==='completed'&&m.winnerIndex===i&&(!r.lastWinAt||dated>r.lastWinAt))r.lastWinAt=dated;
       r.completedMatches=(r.completedMatches||0)+Number(m.status==='completed');
+      if(duration.known){r.completedDurationSeconds+=duration.seconds;r.completedDurationMatches++;}
+      // Each ordinary win contributes one match-average skill. The shared
+      // difficulty reader already weights changes within that match by time.
+      if(m.winnerIndex===i&&difficulty?.known){r.winBotSkillTotal+=difficulty.averageSkill;r.winBotSkillMatches++;}
+      // Match ping is already time-weighted from actual scoreboard observations.
+      // Average the available winning-match means, without guessing missing pings.
+      if(known&&m.status==='completed'&&m.winnerIndex===i&&Number.isFinite(botPing?.averageMs)&&botPing.averageMs>=0&&Number.isFinite(botPing.samples)&&botPing.samples>0){
+        r.winBotPingTotal+=botPing.averageMs;r.winBotPingMatches++;
+      }
+      if(known&&m.status==='completed'&&m.winnerIndex===i&&Number.isFinite(humanPing?.averageMs)&&humanPing.averageMs>=0&&Number.isFinite(humanPing.samples)&&humanPing.samples>0){
+        r.winHumanPingTotal+=humanPing.averageMs;r.winHumanPingMatches++;
+      }
       r.victoryPoints=(r.victoryPoints||0)+(victoryPoints(m,i)??0);
       r.unscoredWins=(r.unscoredWins||0)+Number(known&&m.status==='completed'&&m.winnerIndex===i&&victoryPoints(m,i)===null);
       if(known){
@@ -86,6 +102,10 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
     completedWinRate:p.finished-p.forfeits-p.forfeitWins?(p.wins-p.forfeitWins)/(p.finished-p.forfeits-p.forfeitWins)*100:null,
     forfeitRate:p.finished?p.forfeits/p.finished*100:null,
     unratedMatches:p.finished-(p.isBot?0:p.forfeits+p.forfeitWins)-p.ratedMatches,
+    averageWinBotSkill:p.winBotSkillMatches?p.winBotSkillTotal/p.winBotSkillMatches:null,
+    averageWinBotPingMs:p.winBotPingMatches?p.winBotPingTotal/p.winBotPingMatches:null,
+    averageWinHumanPingMs:p.winHumanPingMatches?p.winHumanPingTotal/p.winHumanPingMatches:null,
+    averageCompletedDurationSeconds:p.completedDurationMatches?p.completedDurationSeconds/p.completedDurationMatches:null,
     averageScore:p.matches?p.score/p.matches:null,averageOpponentScore:p.matches?p.opponentScore/p.matches:null,
     fragDifference:p.score-p.opponentScore,averageFragDifference:p.matches?(p.score-p.opponentScore)/p.matches:null,
     averageKills:p.statsMatches?p.kills/p.statsMatches:null,averageDeaths:p.statsMatches?p.deaths/p.statsMatches:null,
@@ -98,6 +118,8 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
   }
   result.ratingPolicy=ratingPolicy;
   result.completedMatches=rows.filter(m=>m.status==='completed').length;
+  result.completedDurationMatches=completedDurationMatches;
+  result.averageCompletedDurationSeconds=completedDurationMatches?completedDurationSeconds/completedDurationMatches:null;
   result.overtimeMatches=rows.filter(m=>m.overtime&&resultKnown(m)).length;
   if(includeMaps)result.byMap=[...new Set(rows.map(m=>m.map))].sort().map(map=>({map,...aggregateMatches(rows.filter(m=>m.map===map),false,asOf)}));
   return result;

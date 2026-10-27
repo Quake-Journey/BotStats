@@ -1,3 +1,5 @@
+import {winCount} from './count-context.js';
+
 const validTime=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))?Date.parse(value):null;
 
 export function compactMatchDate(value){
@@ -21,5 +23,5 @@ export function winsWithHistory(row,{lang='ru',asOf}){
     [ru?'Последняя игра:':'Last match:',compactMatchDate(row.lastGameAt)],
     [ru?'Без побед:':'Without a win:',elapsed?`${elapsed.days} ${ru?'д':'d'} ${elapsed.hours} ${ru?'ч':'h'}`:'—']
   ];
-  return `<span class="wins-info" title="${note}"><span class="wins-value">${new Intl.NumberFormat(lang).format(row.normalWins)}</span><span class="wins-history">${values.map(([label,value])=>`<span class="wins-history-line"><span class="wins-history-label">${label}</span> <span class="wins-history-value">${value}</span></span>`).join('')}</span></span>`;
+  return `<span class="wins-info" title="${note}">${winCount(row,{lang})}<span class="wins-history">${values.map(([label,value])=>`<span class="wins-history-line"><span class="wins-history-label">${label}</span> <span class="wins-history-value">${value}</span></span>`).join('')}</span></span>`;
 }

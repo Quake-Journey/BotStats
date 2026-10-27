@@ -14,6 +14,11 @@ for(const [engineName,engine]of Object.entries({chromium,firefox,webkit})){
   const values=()=>page.locator('[data-table=rating_victory] .wins-value').evaluateAll(es=>es.map(e=>Number(e.textContent)));
   const check=async()=>{
    assert.ok(await page.locator('.wins-info').count()>0);
+   const conditions=page.locator('[data-table=rating_victory] td.win-conditions-cell');
+   assert.equal(await conditions.count(),await page.locator('[data-table=rating_victory] tbody tr').count());
+   assert.ok(await conditions.evaluateAll(es=>es.every(e=>e===e.parentElement.lastElementChild&&e.querySelectorAll('.win-condition').length===3)),'Final column contains three labelled averages');
+   assert.ok(await conditions.evaluateAll(es=>es.every(e=>e.scrollWidth<=e.clientWidth+1)),'Averages fit their own cell');
+   assert.equal(await page.locator('.wins-info .win-conditions,.wins-info .count-average,.wins-info .win-ping').count(),0,'Wins cell has only count and history');
    assert.equal(await page.locator('.wins-history-line').count(),3*await page.locator('.wins-info').count());
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No page overflow');
    assert.ok(await page.locator('.wins-history').evaluateAll(es=>es.every(e=>e.scrollWidth<=e.clientWidth+1)),'No clipped recency');
@@ -32,6 +37,14 @@ for(const [engineName,engine]of Object.entries({chromium,firefox,webkit})){
   await wins.click();await ready();a=await values();assert.deepEqual(a,[...a].sort((x,y)=>x-y));
   assert.equal(new URL(page.url()).searchParams.get('dir_rating_victory'),'asc');
   await page.reload();await ready();assert.deepEqual(await values(),a);await check();
+  const completed=page.locator('[data-sort-table=rating_victory][data-sort-key=completedMatches]');
+  for(const dir of ['desc','asc']){
+   await completed.click();await ready();
+   const counts=await page.locator('[data-table=rating_victory] .completed-value').evaluateAll(es=>es.map(e=>Number(e.textContent.replace(/[^0-9]/g,''))));
+   assert.deepEqual(counts,[...counts].sort((x,y)=>dir==='desc'?y-x:x-y),'Completed games sort by count, never duration');
+   assert.equal(new URL(page.url()).searchParams.get('dir_rating_victory'),dir);
+  }
+  await page.reload();await ready();await check();
   if(engineName==='chromium'&&lang==='ru')await page.locator('[data-table=rating_victory]').screenshot({path:`${out}/wins-${width}.png`});
   // The map filter changes the dates together with the other table statistics.
   await page.goto(base+`?lang=${lang}&view=rating&ranking=victory&map=q2duel5`);await ready();await check();
