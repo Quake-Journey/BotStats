@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from './store.js';
 import { loadAssets } from './assets.js';
 import { completeScoreHistory } from '../public/score-history.js';
+import { attachOnline } from './online.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const hashPattern=/^[a-f0-9]{64}$/;
@@ -33,7 +34,8 @@ export async function createService(config) {
   if(config.previewExamples===true)assets.html=assets.html.replace('<div id="content"',
     '<aside class="warning preview-notice">Локальная проверка / Local preview. Игроки «Пример …» — демонстрационные сценарии режимов, не реальные матчи. Производственная статистика не меняется. / Players named “Пример …” are test scenarios, not real games; production statistics are unchanged.</aside><div id="content"');
   const store=await openStore(config),app=express();app.disable('x-powered-by');app.enable('strict routing');
-  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});next();});
+  app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Cross-Origin-Opener-Policy':'same-origin','Cross-Origin-Embedder-Policy':'require-corp','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});next();});
+  const bindOnlineSockets=await attachOnline(app,base,config.online);
   app.get(base,(req,res)=>res.redirect(308,base+'/'+(req.url.includes('?')?req.url.slice(req.url.indexOf('?')):'')));
   const api=express.Router();app.use(base,api);
   const authorize=(req,res,next)=>{const supplied=Buffer.from(req.headers['x-ingest-token']||''),expected=Buffer.from(config.ingestToken);if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))return res.status(401).json({error:'Unauthorized'});next();};
@@ -87,14 +89,15 @@ export async function createService(config) {
   app.get('/',(req,res)=>res.redirect(base+'/'));
   app.use((req,res)=>res.status(404).json({error:'Not found'}));
   app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err.status||500;if(status>=500)console.error('[request]',err.message);res.status(status).json({error:status>=500?'Internal service error':err.message});});
-  return {app,store};
+  return {app,store,bindOnlineSockets};
 }
 
 const entryScript=process.env.pm_exec_path||process.argv[1];
 if(entryScript&&path.resolve(entryScript)===fileURLToPath(import.meta.url)) {
   const config=JSON.parse(await readFile(process.argv[2]||path.join(root,'local.json'),'utf8'));
-  const {app,store}=await createService(config);
+  const {app,store,bindOnlineSockets}=await createService(config);
   const server=app.listen(config.port||3085,config.host||'127.0.0.1',()=>console.log(`BotStats http://${config.host||'127.0.0.1'}:${config.port||3085}${config.basePath||'/botstats'}/`));
+  const closeOnlineSockets=bindOnlineSockets(server);
   server.requestTimeout=120000;
-  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{server.close(async()=>{await store.close();process.exit(0);});server.closeIdleConnections();});
+  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{closeOnlineSockets();server.close(async()=>{await store.close();process.exit(0);});server.closeIdleConnections();});
 }

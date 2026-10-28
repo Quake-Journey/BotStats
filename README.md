@@ -214,6 +214,75 @@ version. Restart the website process after updating UI files. The browser then
 loads one coherent asset revision. UI or ranking formula updates do not require
 clearing the database or re-importing recordings.
 
+## Online game server and shared Q2TV
+
+The `Online` / `Онлайн` tab monitors `91.227.18.67:27950`. It uses the same
+`/api/servers?game=q2&not_empty=0&ignore_bots=0` feed as Tournament's `servers.js`.
+The backend coalesces requests for five seconds; the page refreshes every ten
+seconds by default and pauses polling in a hidden tab. Stale data is labelled.
+Refresh interval, player variant and roster sorting are shareable URL state.
+
+When both applications are on the website server, no player copies are needed.
+BotStats reads only `SERVERS_API` and `SITE_PORT` from
+`C:\nodejs\Tournament\.env`. Q2TV HTML, WASM, data and WebSocket transport remain
+owned by the running Tournament service. BotStats exposes them through its own
+`/botstats/q2tv/`, `/botstats/q2tv-mobile/` and fixed-target WebSocket route so
+the embedded player uses one origin and correct isolation headers. Existing
+Caddy `/botstats` proxying must forward WebSocket upgrades (Caddy's normal
+`reverse_proxy` does); no new public root routes are needed for the Online page.
+The browser never receives the environment file or internal service addresses.
+
+Current Hardcore/Training are read with the fixed read-only RCON command
+`sv otx livestatus`: its `effective` fields include live vote overrides. Public
+`sv_bots_training_mode` is only the server default and cannot replace this data.
+Set `BOTSTATS_ONLINE_RCON_PASSWORD` in the existing Tournament `.env` (or in the
+BotStats process environment); a private `online.rconPassword` JSON setting is
+also supported. Never put the credential in browser assets or update archives.
+Each Online refresh reads the effective modes, with simultaneous viewers sharing
+one request and a maximum one-second cache. Failed reads show Unknown instead of
+old on/off values. Only the two mode values and check time reach the browser;
+the raw RCON response is neither exposed nor logged. No gameplay cvars are changed.
+
+Optional overrides in the website JSON (omit for the existing Windows setup):
+
+```json
+"online": {
+  "tournamentEnv": "C:/nodejs/Tournament/.env",
+  "monitorOrigin": "http://127.0.0.1:3001",
+  "tournamentOrigin": "http://127.0.0.1:3000",
+  "server": "91.227.18.67:27950"
+}
+```
+
+Deploy the accompanying Tournament spectator-policy update too. It restricts
+**all** Q2TV sessions through the existing shared gateway, including sessions
+opened from `servers.js`: forced spectator userinfo, blocked join/team/ready,
+blocked inventory menu activation and unsupported commands. Camera movement,
+chase controls, scores and connection/download handshakes remain available.
+This restriction belongs to Tournament, not to the BotStats iframe or a hidden
+Join button. Restart both website processes after the source update. Preserve
+their `.env`, JSON configurations, MongoDB, demos and player resource directories.
+
+The accompanying native Q2TV update supplies the requested map pack, two HTTP
+download slots, native UDP fallback and launch `rate 250000`. Its assets remain
+in Tournament's existing Q2TV roots; BotStats forwards the same HTTP-resource
+endpoint only for its configured game server. See Tournament's `PUBLICATION.md`
+for the matched JS/WASM/data deployment. If a server auto-joins spectators,
+Q2TV detects the actual native playerstate and automatically exits to spectator
+mode. It does not keep toggling an existing spectator/chase camera. No mod
+changes are required for the tested OpenFFA and OpenTDM-X servers.
+
+Player and bot profiles now page through all their matches, with `profilePage`
+in the URL. Period/sort changes reset it, and opening another profile starts at
+its first page. The totals and rating calculations still use all filtered games.
+
+Q2TV's shared loader now keeps complete static resources in browser Cache Storage.
+BotStats preserves Tournament's per-file SHA-256 versions, validators and cache
+headers; HEAD requests remain HEAD upstream. Updating UI helpers does not require
+downloading the map package again. Cache refusal/eviction falls back to normal
+network loading. This is a website-code update; existing Q2TV native assets and
+the importer do not need replacement. The origin's live status is never cached.
+
 ## Source and license
 
 JavaScript and native decoder sources are included; dependency installs, native

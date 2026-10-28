@@ -9,6 +9,8 @@ export function createNavigation({base,params,getPreferences}) {
     for(const [key,value] of Object.entries(extra)) {
       if(value===null||value==='')q.delete(key);else q.set(key,value);
     }
+    // A match-page number belongs to one identity, never to the next profile.
+    if(q.get('profile')!==params.get('profile')||q.get('kind')!==params.get('kind'))q.delete('profilePage');
     const about=q.get('view')==='about';
     if(about)q.delete('view');
     return base+(about?'/about':'/')+'?'+q+hash;
