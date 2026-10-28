@@ -20,7 +20,7 @@ const validate=ajv.compile({type:'object',additionalProperties:false,required:['
   matches:{type:'array',minItems:1,maxItems:100,items:{type:'object',required:['id','map','participants','status','winnerIndex','statsComplete','startedAt'],properties:{
     id:{type:'string',pattern:'^[a-f0-9]{64}-[0-9]+-[0-9]+$'},map:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,64}$'},
     status:{enum:['completed','interrupted','forfeit']},winnerIndex:{enum:[0,1,null]},statsComplete:{type:'boolean'},startedAt:{type:['string','null'],maxLength:40},
-    participants:{type:'array',minItems:2,maxItems:2,items:{type:'object',required:['name','score','isBot','stats'],properties:{name:{type:'string',minLength:1,maxLength:128},score:{type:'integer',minimum:-100000,maximum:100000},isBot:{type:'boolean'},stats:{type:['object','null']},skill:{type:['integer','null'],minimum:0,maximum:250},style:{enum:['default','arcade','defence','chaotic',null]}}}}
+    participants:{type:'array',minItems:2,maxItems:2,items:{type:'object',required:['name','score','isBot','stats'],properties:{name:{type:'string',minLength:1,maxLength:128},score:{type:'integer',minimum:-100000,maximum:100000},isBot:{type:'boolean'},stats:{type:['object','null']},skill:{type:['number','null'],minimum:0,maximum:250},style:{enum:['default','arcade','defence','chaotic',null]}}}}
   }}}
 }});
 
@@ -30,6 +30,8 @@ export async function createService(config) {
   const storage=path.resolve(root,config.storageDir||'data'),demoRoot=path.join(storage,'demos'),staging=path.join(storage,'staging');
   await mkdir(demoRoot,{recursive:true});await mkdir(staging,{recursive:true});
   const assets=await loadAssets(path.join(root,'public'));
+  if(config.previewExamples===true)assets.html=assets.html.replace('<div id="content"',
+    '<aside class="warning preview-notice">Локальная проверка / Local preview. Игроки «Пример …» — демонстрационные сценарии режимов, не реальные матчи. Производственная статистика не меняется. / Players named “Пример …” are test scenarios, not real games; production statistics are unchanged.</aside><div id="content"');
   const store=await openStore(config),app=express();app.disable('x-powered-by');app.enable('strict routing');
   app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});next();});
   app.get(base,(req,res)=>res.redirect(308,base+'/'+(req.url.includes('?')?req.url.slice(req.url.indexOf('?')):'')));

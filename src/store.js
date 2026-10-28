@@ -144,7 +144,7 @@ export async function openStore(config) {
     if(awardCache?.revision===revision&&Date.now()-awardCache.at<30000)return awardCache.value;
     if(awardPending?.revision===revision)return awardPending.promise;
     const promise=(async()=>{
-      const rows=await demos.aggregate([...base(),{$project:{demo:0,stateHistory:0,settingsChanges:0,events:0}}]).toArray();
+      const rows=await demos.aggregate([...base(),{$project:{demo:0,stateHistory:0,settingsChanges:0,events:0,recordedSettings:0}}]).toArray();
       const value=computeAchievements(rows);
       if(awardRevision===revision)awardCache={revision,at:Date.now(),value};
       return value;
@@ -173,12 +173,12 @@ export async function openStore(config) {
     async match(id){const m=(await demos.aggregate([...base(),{$match:{id}},{$limit:1}]).toArray())[0];return m?{...m,rating:ratingDetails(m)}:null;},
     async list(query){
       const page=Math.max(1,Math.min(10000,Number(query.page)||1)),limit=20;
-      const [r]=await demos.aggregate([...base(),{$match:filters(query)},...matchSortStages(query),{$facet:{total:[{$count:'n'}],items:[{$skip:(page-1)*limit},{$limit:limit},{$project:{events:0,stateHistory:0,scoreHistory:0,sortValue:0,sortTie:0,sortMissing:0}}]}}],{collation:{locale:'en',numericOrdering:true,strength:2}}).toArray();
+      const [r]=await demos.aggregate([...base(),{$match:filters(query)},...matchSortStages(query),{$facet:{total:[{$count:'n'}],items:[{$skip:(page-1)*limit},{$limit:limit},{$project:{events:0,stateHistory:0,scoreHistory:0,recordedSettings:0,sortValue:0,sortTie:0,sortMissing:0}}]}}],{collation:{locale:'en',numericOrdering:true,strength:2}}).toArray();
       return {items:r.items.map(m=>({...m,rating:ratingDetails(m)})),total:r.total[0]?.n||0,page,pages:Math.ceil((r.total[0]?.n||0)/limit)};
     },
     async facets(){const rows=await demos.aggregate([...base(),{$project:{map:1,modVersion:1,participants:1}}]).toArray();const values=fn=>[...new Set(rows.flatMap(fn).filter(x=>x!==null&&x!==undefined))].sort();return {maps:values(x=>[x.map]),versions:values(x=>[x.modVersion]),bots:values(x=>x.participants.filter(p=>p.isBot).map(p=>p.profile)),styles:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.style,...(p.styleTimeline||[]).map(x=>x.value)])),skills:values(x=>x.participants.filter(p=>p.isBot).flatMap(p=>[p.skill,...(p.skillTimeline||[]).map(x=>x.value)]))};},
     async summary(query){
-      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1}}]).toArray();
+      const rows=await demos.aggregate([...base(),{$match:filters(query)},{$project:{id:1,startedAt:1,participants:1,winnerIndex:1,status:1,durationSeconds:1,recordedSeconds:1,timelineDurationMs:1,startObserved:1,map:1,statsComplete:1,overtime:1,ratingExcluded:1,modes:1}}]).toArray();
       return aggregateMatches(rows);
     }
   };

@@ -1,3 +1,4 @@
+import {modeBadges} from './modes-ui.js';
 import {renderTable} from './tables.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const asset=file=>new URL('./'+file,import.meta.url).href;
@@ -68,7 +69,7 @@ export function achievementPage(a,options){
       {key:'map',label:ru?'Карта':'Map',text:true,value:m=>m.map},
       {key:'bot',label:ru?'Соперник':'Opponent',text:true,value:m=>a.audience==='bot'?m.human:m.bot},
       {key:'score',label:ru?'Счёт игрока : бота':'Player : bot score',value:m=>m.score,render:m=>`<a ${link({view:'matches',match:m.id,profile:null,achievement:null,awardPlayer:null,awardPage:null})}>${m.score[0]} : ${m.score[1]} ↗</a>`},
-      {key:'duration',label:ru?'Длительность':'Duration',value:m=>m.durationSeconds,render:m=>duration(m.durationSeconds)}];
+      {key:'duration',label:ru?'Длительность':'Duration',value:m=>m.durationSeconds,render:m=>duration(m.durationSeconds)+modeBadges(m,lang)}];
     evidence=`<section class="panel award-evidence" id="evidence"><h2>${ru?'Подтверждающие матчи':'Qualifying matches'} · ${esc(selected)}</h2><p class="sub">${ru?'Матчей':'Matches'}: ${e.total}</p>${renderTable('award_evidence',cols,e.matches,{params,lang,defaultKey:'date',defaultDir:'asc',presorted:true})}${e.pages>1?`<nav class="pagination">${e.page>1?`<a class="button-link" ${link({awardPage:e.page-1})}>←</a>`:''}<span>${e.page} / ${e.pages}</span>${e.page<e.pages?`<a class="button-link" ${link({awardPage:e.page+1})}>→</a>`:''}</nav>`:''}</section>`;
   }
   return `<a class="back" ${awardLink(link,null)}>${ru?'← Все достижения':'← All achievements'}</a><section class="achievement-detail${a.audience==='bot'?' machine-award':''}"><img class="achievement-detail-art" src="${esc(asset(a.icon))}" width="240" height="240" alt=""><div><div class="eyebrow">${ru?'Достижение':'Achievement'}</div><h1>${esc(a.name[lang])}</h1><p>${esc(a.description[lang])}</p><span class="achievement-count">${ru?'Обладателей':'Award holders'} <b>${a.holders.length}</b></span>${a.revocable?`<p class="award-revocable">${ru?'Текущая награда: может быть отозвана и получена снова.':'A current award: it can be revoked and earned again.'}</p>`:''}</div></section><section class="panel"><h2>${ru?'Обладатели':'Award holders'}</h2>${renderTable('award_holders',columns,a.holders,{params,lang,defaultKey:'date',defaultDir:'asc'})}</section>${evidence}${generalRules(lang)}`;

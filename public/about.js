@@ -1,3 +1,4 @@
+import {modesGuide} from './modes-ui.js';
 import {ratingPolicy,victoryDuration} from './rating.js';
 
 const signed=n=>n>0?'+'+n:String(n);
@@ -9,12 +10,14 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 export function aboutPage(lang,backLink){
   const ru=lang==='ru',humanExample=3*h.win+2*h.loss,botExample=2*b.win+b.loss+2*b.forfeitWin;
   const links=ru?['Усреднённый рейтинг и рейтинг ботов','Как учитывается скилл','Forfeit и прерванные игры','Средние показатели','Овертайм','Карты, периоды и фильтры','Места и участники']:['Average rating and bot rating','How skill is weighted','Forfeits and interruptions','Averages','Overtime','Maps, periods and filters','Ranking and participants'];
-  const ids=['points','difficulty','forfeit','averages','overtime','filters','participants'];
+  links.push(ru?'Hardcore и Training':'Hardcore and Training');
+  const ids=['points','difficulty','forfeit','averages','overtime','filters','participants','modes'];
   return `<a class="back" ${backLink}>${ru?'← К статистике':'← Back to statistics'}</a>
   <article class="rating-guide">
     <div class="detail-top"><div><div class="eyebrow">Q2PRO-X · BotStats</div><h1>${ru?'О рейтинге':'About the rating'}</h1>
     <p class="guide-lead">${ru?'Основной рейтинг — победный: он накапливает очки за победы над ботами. Рядом доступны усреднённый рейтинг без forfeit, отдельный антирейтинг forfeit, рейтинг по числу завершённых матчей без forfeit и популярность карт. Рейтинг ботов ведётся отдельно.':'Victory rating is the main ranking: it accumulates points for wins against bots. You can also view the Average rating excluding forfeits, a separate forfeit anti-ranking, completed-match rankings and map popularity. Bots have a separate leaderboard.'}</p></div></div>
     <nav class="guide-contents" aria-label="${ru?'На этой странице':'On this page'}"><a href="#columns">${ru?'Что означают колонки':'Column meanings'}</a><a href="#duration">${ru?'Длительность и очки за победу':'Duration and win points'}</a><a href="#rankings">${ru?'Виды рейтинга':'Ranking types'}</a><a href="#bot-wins">${ru?'Награды за победы ботов':'Bot win awards'}</a>${links.map((label,i)=>`<a href="#${ids[i]}">${label}</a>`).join('')}</nav>
+    <p class="rating-context">${ru?'Базовые очки ниже приведены до поправки за Hardcore и Training. Эти режимы могут увеличить или уменьшить награду и штраф; подробные правила — в разделе «Hardcore и Training».':'Base points below are shown before Hardcore and Training adjustments. Modes can increase or decrease awards and penalties; see the Hardcore and Training section for details.'}</p>
     <section id="columns" class="guide-section"><h2>${ru?'Что означают колонки':'What the columns mean'}</h2>
       <dl class="column-guide">
         <dt>${ru?'Очки побед':'Victory points'}</dt><dd>${ru?'Сколько очков принесли победы над ботами с учётом их скилла и длительности матча. Это очки, а не число побед. Поражения и forfeit эту сумму не уменьшают.':'Points earned by beating bots, weighted by their skill and match duration. This is a point total, not a win count. Losses and forfeits do not reduce it.'}</dd>
@@ -105,7 +108,8 @@ export function aboutPage(lang,backLink){
 function difficultySection(ru){
   const format=n=>new Intl.NumberFormat(ru?'ru':'en',{maximumFractionDigits:2}).format(n);
   const examples=[['50',50,200],['100',100,200],['200',200,200],['GOD-X 250',250,200],['Human-X 100',100,100]];
-  return `<section id="difficulty" class="guide-section"><h2>${ru?'Как учитывается скилл':'How skill is weighted'}</h2><p>${ru?'Здесь описан коэффициент K для победных очков человека. Тот же коэффициент задаёт силу соперника в усреднённом рейтинге. Отдельная шкала штрафов ботов приведена в следующем разделе.':'This section describes K for human Victory points. The same coefficient sets opponent difficulty in Average rating. The separate bot loss penalty scale follows in the next section.'}</p>
+  return `${modesGuide(ru?"ru":"en")}
+    <section id="difficulty" class="guide-section"><h2>${ru?'Как учитывается скилл':'How skill is weighted'}</h2><p>${ru?'Здесь описан коэффициент K для победных очков человека. Тот же коэффициент задаёт силу соперника в усреднённом рейтинге. Отдельная шкала штрафов ботов приведена в следующем разделе.':'This section describes K for human Victory points. The same coefficient sets opponent difficulty in Average rating. The separate bot loss penalty scale follows in the next section.'}</p>
     <p>${ru?'Сначала считаем средний скилл за активное время матча: каждый уровень умножается на время, которое бот с ним играл; произведения складываются и делятся на общую длительность. Паузы и разминка не дают веса. Овертайм входит в расчёт. Смена скилла в последнюю секунду влияет только на эту секунду.':'First, skill is averaged over active match time: multiply each skill level by the time it was used, add the results, then divide by total duration. Pauses and warmup carry no weight. Overtime is included. A change in the final second only affects that second.'}</p>
     <div class="guide-example"><p class="formula-value">${ru?'Средний скилл = Σ(скилл × время) / Σ(время)':'Average skill = Σ(skill × time) / Σ(time)'}</p>
       <p class="formula-value">K = ${ru?'средний скилл / базовый уровень':'average skill / reference skill'}</p>

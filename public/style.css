@@ -159,3 +159,26 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 @media(max-width:800px){.overview-secondary{gap:8px;margin:14px 0}.overview-secondary .overview-fold{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0 14px}.overview-secondary .overview-fold>summary{display:list-item;cursor:pointer;padding:12px 0;font-size:15px;font-weight:650;color:var(--accent);min-height:44px}.overview-secondary .overview-fold[open]>.kpis,.overview-secondary .overview-fold[open]>.hero-card{height:auto;margin-bottom:14px}}
 
 .player-directory-name{font-size:18px;font-weight:750;color:var(--accent)}
+
+/* Recorded match modes: shared by cards, rows, evidence and match details. */
+.match-context{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;max-width:100%}
+.match-modes{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 10px;max-width:100%;font-size:13px;line-height:1.45;letter-spacing:normal;text-transform:none;font-weight:400}
+.mode-tag{display:inline-block;color:var(--muted);overflow-wrap:anywhere}
+.mode-tag strong{font-weight:650;color:var(--text)}
+.mode-on strong{color:var(--accent)}
+.mode-unknown strong{font-weight:400;color:var(--muted)}
+.match-row .match-modes{flex-direction:column;gap:2px;width:100%}
+.latest-match .mini-label{flex-wrap:wrap;gap:8px;align-items:center}
+.latest-match .match-context{justify-content:flex-end}
+.modes-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.modes-heading h2{margin:0}.modes-heading .match-modes{font-size:16px;gap:10px 24px}
+.modes-panel p{margin:12px 0}.modes-panel .sub{font-size:14px}
+.mode-history-fold{margin:12px 0}.mode-history-fold summary{cursor:pointer;color:var(--accent)}
+.mode-histories{display:flex;gap:16px 40px;flex-wrap:wrap}.mode-history ol{margin:8px 0 14px;padding:0;list-style:none}
+.mode-history li{display:flex;gap:16px}.mode-history time{font-variant-numeric:tabular-nums;min-width:48px;color:var(--muted)}
+@media(max-width:600px){.modes-panel{padding:16px}.modes-heading .match-modes{justify-content:flex-start;font-size:15px}.latest-match .match-context{justify-content:center;width:100%}.latest-match .mini-label{justify-content:center}.mode-history-fold summary{padding:6px 0}}
+
+.hero-card .latest-heading{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+.latest-heading .latest-result{display:flex;flex-direction:column;align-items:center;gap:4px;max-width:160px}
+.latest-heading .latest-map{justify-self:end;text-align:right;overflow-wrap:anywhere}
+.hero-card .latest-match .hero-score{max-width:none}

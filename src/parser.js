@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import {normalizeMatchResult} from '../public/match-result.js';
+import {settingsRecords,assembleSettings,applyMatchSettings,participantBotRows} from './match-settings.js';
 
-export const PARSER_VERSION = '0.1.7';
+export const PARSER_VERSION = '0.2.0';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
@@ -115,7 +116,7 @@ export function settingChange(text, timeMs) {
 export class Collector {
   constructor() { this.parts=new Map(); this.result=null; }
   part(id=0) {
-    if (!this.parts.has(id)) this.parts.set(id,{id,configs:new Map(),prints:[],seen:new Set(),frames:[],identities:[],pings:new Map(),names:new Map(),end:0,version:null,timer:null,status:null});
+    if (!this.parts.has(id)) this.parts.set(id,{id,configs:new Map(),prints:[],metadata:[],seen:new Set(),frames:[],identities:[],pings:new Map(),names:new Map(),end:0,version:null,timer:null,status:null});
     return this.parts.get(id);
   }
   accept(e) {
@@ -126,12 +127,13 @@ export class Collector {
       const value=plain(e.text); s.configs.set(e.index,value);
       if(e.index>=1312 && e.index<1568) {const slot=e.index-1312,name=value.split('\\')[0];if(s.names.get(slot)!==name)s.identities.push({timeMs:e.time_ms,slot,name});s.names.set(slot,name);}
     } else if(e.kind==='layout') {
-      const version=plain(e.text).match(/OpenTDM-X Beta ([\d.]+[A-Za-z]?(?: hotfix[ -]?\d+)?)(?: by ly)/i);
+      const version=plain(e.text).match(/OpenTDM-X Beta ([\d.]+[A-Za-z]?(?: (?:Preview|hotfix)[ -]?\d+)?)(?: by ly)/i);
       if(version) s.version=version[1];
       for(const m of plain(e.text).matchAll(/\bstring2? "([^"\n]+?):(\d+)\([^"\n]*\)"/g)) {
         s.pings.set(`${e.time_ms}:${m[1]}`,{timeMs:e.time_ms,name:m[1],ping:+m[2]});
       }
     } else if(e.kind==='print') {
+      s.metadata.push(...settingsRecords(e));
       const text=plain(e.text),key=`${e.time_ms}:${e.level}:${text}`;
       if(!s.seen.has(key)) {s.seen.add(key);s.prints.push({timeMs:e.time_ms,level:e.level,text});}
     } else if(e.kind==='player_state') {
@@ -209,6 +211,10 @@ export function summarize(collector, meta) {
         const named=[...fs].reverse().find(f=>f.teamNames.every(name=>s.identities.some(x=>x.name===name&&x.timeMs<=f.timeMs)))||last;
         participants=named.teamNames.map((name,i)=>({name,score:last.teamScores[i],isBot:botName(name||''),profile:botName(name||'')?baseName(name):null,skill:skillInName(name||''),style:null,stats:null}));
       }
+      const recordedSettings=assembleSettings(s.metadata.filter(r=>r.timeMs>=start&&r.timeMs<end));
+      for(const p of participants)if(recordedSettings.snapshots.some(x=>participantBotRows(x,p,s,plain).length===1)){
+        p.isBot=true;p.profile||=baseName(p.name);
+      }
       if(participants.length!==2 || participants.some(p=>!p.name) || participants.filter(p=>p.isBot).length!==1)continue;
       const participantIndex=name=>participants.findIndex(p=>p.name===name||(p.isBot&&baseName(name)===p.profile));
       const ended=ps.find(p=>/Timelimit hit\. Match ended| wins, | wins by |Match drawn/i.test(p.text));
@@ -242,9 +248,15 @@ export function summarize(collector, meta) {
       // even when the earlier broadcast is absent from the recording.
       const autoName=/^\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d_[A-Za-z0-9_-]+_.+-vs-.+-(?:style)?(?:default|arcade|defence|chaotic)(?:_-?\d+--?\d+)?_\d+\.mvd2$/i.test(meta.originalName);
       const firstFrame=fs[0];
-      const autoStart=k===0&&autoName&&firstFrame?.timeMs<=200&&firstFrame.status==='Match'&&/^\d+:00$/.test(firstFrame.timer)&&firstFrame.teamScores.every(n=>n===0);
-      const startObserved=Boolean(firstFight||autoStart);
-      const startSource=firstFight?'fight_announcement':autoStart?'server_autorecord':'unconfirmed';
+      const opening=recordedSettings.snapshots.find(x=>x.event==='start'&&x.timeMs>=start&&x.timeMs<=start+250)?.settings;
+      const clock=firstFrame?.timer.match(/^(\d+):(\d\d)$/);
+      const configured=opening?.duration_seconds;
+      const clockMatches=clock&&Number.isFinite(configured)&&Math.abs(+clock[1]*60+ +clock[2]-configured)<=1;
+      const initialHud=k===0&&firstFrame?.timeMs<=200&&firstFrame.status==='Match'&&firstFrame.teamScores.every(n=>n===0);
+      const autoStart=initialHud&&autoName&&/^\d+:00$/.test(firstFrame.timer)&&(!Number.isFinite(configured)||clockMatches);
+      const metadataStart=initialHud&&Boolean(opening&&clockMatches);
+      const startObserved=Boolean(firstFight||autoStart||metadataStart);
+      const startSource=firstFight?'fight_announcement':autoStart?'server_autorecord':metadataStart?'settings_and_initial_hud':'unconfirmed';
       let pausedAt=null,pausedMs=0;const pauses=[];
       for(const p of ps.filter(p=>p.timeMs>=start&&p.timeMs<=end)) {
         if(/(?:has |is )?paused the game|Game paused|Match paused|game is paused|^OpenTDM-X: paused while/i.test(p.text) && pausedAt===null)pausedAt=p.timeMs;
@@ -300,7 +312,7 @@ export function summarize(collector, meta) {
       const winner=status==='forfeit'?participants.findIndex(p=>p.isBot):status==='interrupted'?null:winnerName?participantIndex(winnerName):participants[0].score===participants[1].score?null:participants[0].score>participants[1].score?0:1;
       const botProfiles=[...new Set(fs.filter(f=>f.timeMs<=end).flatMap(f=>f.teamNames).filter(n=>botName(n||'')).map(baseName))];
       const ratingExcluded=botProfiles.length>1?'opponent_changed':null;
-      matches.push(normalizeMatchResult({id:`${meta.sha256}-${s.id}-${k}`,segment:s.id,ordinal:k,map:table?.map||s.map||meta.originalName.split('_')[2],
+      const match=normalizeMatchResult({id:`${meta.sha256}-${s.id}-${k}`,segment:s.id,ordinal:k,map:table?.map||s.map||meta.originalName.split('_')[2],
         startedAt:meta.recordedAt?new Date(Date.parse(meta.recordedAt)+start).toISOString():null,
         startMs:start,endMs:end,timelineDurationMs:gameTime(end),recordedSeconds:Math.max(0,(end-start)/1000),durationSeconds,startObserved,startSource,
         status,winnerIndex:winner<0?null:winner,forfeitBy:status==='forfeit'?human.name:null,
@@ -309,7 +321,11 @@ export function summarize(collector, meta) {
         ...extraTime,botProfiles,ratingExcluded,
         participants,scoreHistory,stateHistory,settingsChanges:changes,
         events:ps.filter(p=>p.timeMs<=end && !p.text.includes('MATCH STATS') && (p===termination||p.level===1||/forfeit| wins|Timelimit|Restarting|paused|resum|^Scores are tied|^Fight!|^OpenTDM-X: .* (?:style:|skill)/i.test(p.text))).map(p=>({timeMs:gameTime(p.timeMs),text:p.text.trim()})),
-        warnings:[...(!startObserved?['partial_start']:[]),...(!statsComplete?['no_final_stats']:[]),...(!s.version?['unknown_mod_version']:[]),...(ratingExcluded?[ratingExcluded]:[])]}));
+        warnings:[...(!startObserved?['partial_start']:[]),...(!statsComplete?['no_final_stats']:[]),...(!s.version?['unknown_mod_version']:[]),...(ratingExcluded?[ratingExcluded]:[])]});
+      // End metadata follows the result table. It describes settings, not a
+      // new result or extra playing time. Never extend the actual match with it.
+      recordedSettings.snapshots=recordedSettings.snapshots.filter(x=>x.timeMs<=end||x.event==='end'&&x.timeMs<=end+2000);
+      matches.push(applyMatchSettings(match,recordedSettings,s,gameTime,plain));
     }
   }
   return {schemaVersion:1,parserVersion:PARSER_VERSION,demo:meta,matches};

@@ -73,7 +73,7 @@ export function computeAchievements(input){
     const hi=m.participants.findIndex(p=>!p.isBot),h=m.participants[hi],b=m.participants[1-hi];
     if(!players.has(h.name))players.set(h.name,{name:h.name,awards:new Map(),buckets:new Map(),maps:new Map(),crowns:new Map(),heads:new Map(),streak:[],previous:null,losses:[],wins:[]});
     const p=players.get(h.name);
-    matches.set(m.id,{id:m.id,map:m.map,startedAt:m.startedAt,status:m.status,durationSeconds:m.durationSeconds,human:h.name,bot:b.name,score:[h.score,b.score]});
+    matches.set(m.id,{id:m.id,map:m.map,startedAt:m.startedAt,status:m.status,durationSeconds:m.durationSeconds,modes:m.modes,human:h.name,bot:b.name,score:[h.score,b.score]});
     const grant=(id,evidence,metric=evidence.length)=>{if(!p.awards.has(id))p.awards.set(id,{id,earnedAt:evidenceDate(m),evidence:[...evidence],metric});};
     const count=(id,n)=>{const ids=p.buckets.get(id)||[];ids.push(m.id);p.buckets.set(id,ids);if(ids.length>=n)grant(id,ids.slice(0,n),n);};
     if(m.ratingExcluded){p.streak=[];p.previous=null;continue;}

@@ -1,10 +1,11 @@
 import {botDifficulty,resultKnown} from './rating.js';
 import {normalizeMatchResult} from './match-result.js';
+import {modeDifficulty} from './match-modes.js';
 
 // A conservative performance estimate against fixed bot difficulty references.
 // Not a sum of rewards and not Elo (opponent ratings never depend on upload order).
 export const performancePolicy=Object.freeze({
-  version:'human-performance-v2',maximum:100,
+  version:'human-performance-v3-modes',maximum:100,
   priorDeviation:2,confidenceZ:1.2815515655446004,minimumGames:10,
   resultWeight:.75,minimumSeconds:120,fullWeightSeconds:600
 });
@@ -23,7 +24,7 @@ export function humanPerformance(matches){
     const outcome=m.winnerIndex===null?.5:Number(m.winnerIndex===i);
     const margin=(human.score-bot.score)/(Math.abs(human.score)+Math.abs(bot.score)+2);
     const target=p.resultWeight*outcome+(1-p.resultWeight)*(.5+.5*margin);
-    evidence.push({difficulty:Math.log(difficulty.factor),weight:Math.min(1,seconds/p.fullWeightSeconds),target,
+    evidence.push({difficulty:Math.log(difficulty.factor*modeDifficulty(m).factor),weight:Math.min(1,seconds/p.fullWeightSeconds),target,
       outcome,fragDifference:human.score-bot.score});
   }
   if(!evidence.length)return {value:null,estimate:null,games:0,equivalentGames:0,provisional:true,wins:0,losses:0,draws:0,winRate:null,averageFragDifference:null,averageDifficulty:null};

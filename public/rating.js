@@ -1,7 +1,8 @@
 import {normalizeMatchResult} from './match-result.js';
+import {modeDifficulty,modePointFactor} from './match-modes.js';
 // One policy for both API aggregation and the browser's per-match explanation.
 export const ratingPolicy = Object.freeze({
-  version: 'human-performance-forfeit-share-v8',
+  version: 'match-modes-v9',
   skill: Object.freeze({standardReference:200, humanReference:100, inverseWeightCap:4}),
   duration: Object.freeze({minimumSeconds:120, maximumSeconds:600, minimumPoints:1, maximumPoints:10}),
   human: Object.freeze({win:10, loss:-1, forfeitWin:0, forfeitLoss:0, draw:0}),
@@ -27,7 +28,7 @@ export function victoryDuration(match) {
 export function botDifficulty(match) {
   const bot=match.participants.find(p=>p.isBot);
   if(!bot)return {known:false,reason:'missing_bot'};
-  const profile=(bot.profile||bot.name.replace(/(?:\[\d+\]|>\d+)$/,'')).toLowerCase();
+  const profile=(bot.metadataProfile||bot.profile||bot.name.replace(/(?:\[\d+\]|>\d+)$/,'')).toLowerCase();
   const human=/^human(?:-x)?$/.test(profile),god=/^god(?:-x)?$/.test(profile);
   const reference=human?ratingPolicy.skill.humanReference:ratingPolicy.skill.standardReference;
   const maximum=human?100:god?250:200;
@@ -68,7 +69,8 @@ export function botLossPenalty(match) {
   if(!difficulty.known)return {known:false,reason:difficulty.reason};
   const {averageSkill,maximum}=difficulty,minimum=ratingPolicy.bot.minimumLossFactor;
   const factor=minimum+(1-minimum)*(averageSkill-1)/(maximum-1);
-  return {known:true,averageSkill,maximum,factor,points:ratingPolicy.bot.loss*factor};
+  const basePoints=ratingPolicy.bot.loss*factor,modeFactor=modePointFactor(match,true,basePoints);
+  return {known:true,averageSkill,maximum,factor,basePoints,modeFactor,points:basePoints*modeFactor};
 }
 
 export function resultKnown(match) {
@@ -90,7 +92,8 @@ export function botWinAward(match) {
   const minimum=forfeit?p.minimumForfeitWin:p.minimumWin,maximum=forfeit?p.forfeitWin:p.win;
   const progress=Math.max(0,Math.min(1,(seconds-t.minimumSeconds)/(t.maximumSeconds-t.minimumSeconds)));
   const basePoints=minimum+(maximum-minimum)*progress,skillFactor=d.averageSkill/d.maximum;
-  return {known:true,seconds,forfeit,basePoints,skillFactor,averageSkill:d.averageSkill,maximumSkill:d.maximum,points:basePoints*skillFactor};
+  const modeFactor=modePointFactor(match,true,basePoints*skillFactor);
+  return {known:true,seconds,forfeit,basePoints,skillFactor,modeFactor,averageSkill:d.averageSkill,maximumSkill:d.maximum,points:basePoints*skillFactor*modeFactor};
 }
 
 export function matchPoints(match,index) {
@@ -100,7 +103,8 @@ export function matchPoints(match,index) {
   const policy=p.isBot?ratingPolicy.bot:ratingPolicy.human;
   if(match.status==='forfeit') {
     if(p.isBot)return match.winnerIndex===index?(botWinAward(match).points??null):0;
-    return match.winnerIndex===index?policy.forfeitWin:policy.forfeitLoss;
+    const points=match.winnerIndex===index?policy.forfeitWin:policy.forfeitLoss;
+    return points*modePointFactor(match,false,points);
   }
   if(match.winnerIndex===null)return policy.draw;
   if(p.isBot)return match.winnerIndex===index?(botWinAward(match).points??null):(botLossPenalty(match).points??null);
@@ -110,7 +114,8 @@ export function matchPoints(match,index) {
   if(won&&duration.basePoints===0)return 0;
   const difficulty=botDifficulty(match);if(!difficulty.known)return null;
   const k=difficulty.factor,inverse=Math.min(ratingPolicy.skill.inverseWeightCap,1/k);
-  return won?duration.basePoints*k:policy.loss*inverse;
+  const points=won?duration.basePoints*k:policy.loss*inverse;
+  return points*modePointFactor(match,false,points);
 }
 
 // Victory rating is independent of penalties. Forfeits never award victory points.
@@ -139,5 +144,5 @@ export function rankMaps(rows){
 
 export function ratingDetails(match){
   match=normalizeMatchResult(match);
-  return {version:ratingPolicy.version,difficulty:botDifficulty(match),botLoss:botLossPenalty(match),botWin:botWinAward(match),duration:victoryDuration(match),points:match.participants.map((_,i)=>matchPoints(match,i)),victoryPoints:match.participants.map((_,i)=>victoryPoints(match,i))};
+  return {version:ratingPolicy.version,modes:modeDifficulty(match),difficulty:botDifficulty(match),botLoss:botLossPenalty(match),botWin:botWinAward(match),duration:victoryDuration(match),points:match.participants.map((_,i)=>matchPoints(match,i)),victoryPoints:match.participants.map((_,i)=>victoryPoints(match,i))};
 }
