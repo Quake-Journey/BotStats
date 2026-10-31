@@ -51,13 +51,17 @@ export function filters(query,now=new Date()) {
 export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
   rows=rows.map(normalizeMatchResult);
   const players=new Map(),humanGames=new Map();let humanWins=0,botWins=0,finished=0,completedDurationSeconds=0,completedDurationMatches=0;
+  let lastHumanWinAt=null,lastBotWinAt=null;
   for(const m of rows){
     const known=resultKnown(m),dateMs=Date.parse(m.startedAt),dated=Number.isFinite(dateMs)?new Date(dateMs).toISOString():null;
     const duration=m.status==='completed'?victoryDuration(m):{known:false};
     const difficulty=known&&m.status==='completed'&&m.winnerIndex!==null?botDifficulty(m):null;
     const botPing=m.participants.find(p=>p.isBot)?.ping,humanPing=m.participants.find(p=>!p.isBot)?.ping;
     if(duration.known){completedDurationSeconds+=duration.seconds;completedDurationMatches++;}
-    if(known){finished++;if(m.winnerIndex!==null){if(m.participants[m.winnerIndex].isBot)botWins++;else humanWins++;}}
+    if(known){finished++;if(m.winnerIndex!==null){
+      if(m.participants[m.winnerIndex].isBot){botWins++;if(dated&&(!lastBotWinAt||dated>lastBotWinAt))lastBotWinAt=dated;}
+      else {humanWins++;if(dated&&(!lastHumanWinAt||dated>lastHumanWinAt))lastHumanWinAt=dated;}
+    }}
     for(let i=0;i<m.participants.length;i++){
       const p=m.participants[i],name=p.isBot?p.profile:p.name,key=`${p.isBot}:${name}`;
       if(!p.isBot){if(!humanGames.has(key))humanGames.set(key,[]);humanGames.get(key).push(m);}
@@ -113,6 +117,9 @@ export function aggregateMatches(rows,includeMaps=true,asOf=new Date()){
     averageDamage:p.statsMatches?p.damage/p.statsMatches:null
   })).sort((a,b)=>b.points-a.points||b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name))};
   result.asOf=asOf.toISOString();
+  result.uniqueHumans=humanGames.size;
+  result.lastHumanWinAt=lastHumanWinAt;
+  result.lastBotWinAt=lastBotWinAt;
   for(const player of result.players){player.lastGameAt??=null;player.lastGameMatchId??=null;player.lastWinAt??=null;
     if(!player.isBot)player.performance=humanPerformance(humanGames.get(`false:${player.name}`)||[]);
   }

@@ -1,12 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {aggregateMatches} from '../src/store.js';
-import {compactMatchDate,timeWithoutWin,winsWithHistory} from '../public/win-history.js';
+import {compactMatchDate,timeWithoutWin,winsWithHistory,overviewHistory} from '../public/win-history.js';
 import {renderTable} from '../public/tables.js';
 
 const game=(startedAt,status,winnerIndex,map='q2duel5',extra={})=>({
   startedAt,status,winnerIndex,map,durationSeconds:600,statsComplete:false,...extra,
   participants:[{name:'Alice',score:10,isBot:false,stats:null},{name:'David-X[200]',profile:'David-X',score:2,isBot:true,skill:200,stats:null}]
+});
+
+test('overview recency follows its win counters including bot technical wins and unique human identities',()=>{
+  const rows=[game('2026-10-20T09:00:00Z','completed',0),game('2026-10-23T10:00:00Z','completed',0,'ztn2dm3'),
+    game('2026-10-24T09:00:00Z','forfeit',0),game('2026-10-25T10:00:00Z','interrupted',null),
+    game('2026-10-26T10:00:00Z','completed',0,'q3t2',{ratingExcluded:'opponent_changed'}),
+    game(null,'completed',0),game('invalid','completed',1)];
+  const newcomer=game('2026-10-27T10:00:00Z','completed',1,'q3t2');
+  newcomer.participants[0].name='David-X';rows.push(newcomer);
+  const result=aggregateMatches(rows,true,new Date('2026-10-31T10:00:00Z'));
+  assert.equal(result.uniqueHumans,2,'Count humans by name even when a name equals a bot profile');
+  assert.equal(result.humanWins,3);assert.equal(result.lastHumanWinAt,'2026-10-23T10:00:00.000Z');
+  assert.equal(result.botWins,4);assert.equal(result.lastBotWinAt,'2026-10-27T10:00:00.000Z');
+  const duel=result.byMap.find(r=>r.map==='q2duel5');
+  assert.equal(duel.uniqueHumans,1);assert.equal(duel.lastBotWinAt,'2026-10-25T10:00:00.000Z');
+  assert.equal(duel.lastHumanWinAt,'2026-10-20T09:00:00.000Z');
+  for(const field of ['uniqueHumans','lastHumanWinAt','lastBotWinAt'])assert.equal(aggregateMatches([...rows].reverse())[field],result[field]);
+  const empty=aggregateMatches([]);assert.equal(empty.uniqueHumans,0);assert.equal(empty.lastHumanWinAt,null);assert.equal(empty.lastBotWinAt,null);
+  const undated=aggregateMatches([game(null,'completed',0)]);assert.equal(undated.humanWins,1);assert.equal(undated.lastHumanWinAt,null);
+});
+
+test('overview details format dates and elapsed days like the rating table without inventing missing values',()=>{
+  const summary={uniqueHumans:12,lastHumanWinAt:'2026-10-25T18:20:00Z',lastBotWinAt:'2026-10-31T10:00:00Z',asOf:'2026-10-31T14:20:00Z'};
+  const human=overviewHistory(summary,'humanWins');assert.match(human,/25\.10\.26 21:20/);assert.match(human,/5 д 20 ч/);
+  const bot=overviewHistory(summary,'botWins','en');assert.match(bot,/Last win:/);assert.match(bot,/31\.10\.26 13:00/);assert.ok(!bot.includes('Without a win'));
+  assert.match(overviewHistory(summary,'allMatches'),/Уникальных игроков:/);assert.match(overviewHistory(summary,'allMatches'),/>12</);
+  assert.equal(overviewHistory(summary,'gameTime'),'');
+  const missing=overviewHistory({lastHumanWinAt:'<script>',asOf:summary.asOf},'humanWins');
+  assert.ok(!missing.includes('<script>'));assert.equal((missing.match(/>—</g)||[]).length,2);
 });
 
 test('win recency uses dated completed wins; last game also includes interrupted and forfeit games',()=>{

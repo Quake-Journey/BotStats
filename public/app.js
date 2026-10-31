@@ -7,7 +7,8 @@ import {performancePolicy} from './performance-rating.js';
 import {createNavigation} from './navigation.js';
 import {aboutPage} from './about.js';
 import {dynamicsPage,mountDynamics} from './dynamics-ui.js';
-import {winsWithHistory} from './win-history.js';
+import {winsWithHistory,overviewHistory} from './win-history.js';
+import {winBalance} from './win-balance.js';
 import {winCount,winConditionsColumn,completedWithDuration} from './count-context.js';
 import {achievementBadges,achievementProfile,achievementsPage,achievementPage,mountAchievementBadges} from './achievements-ui.js';
 let awardCatalog={items:[]};
@@ -155,7 +156,12 @@ function listShell(){
 }
 function matchRow(m){const attrs=link({view:'matches',match:m.id,profile:null,achievement:null,awardPlayer:null,awardPage:null});return `<div class="match-row"><div><a ${attrs}><div class="map-name ${esc(m.map)}">${esc(m.map)}</div><div class="date">${esc(date(m.startedAt))}</div></a></div><div class="duel">${person(m.participants[0],m)}<a class="score-link" ${attrs} aria-label="${t('details')}">${score(m)}</a>${person(m.participants[1],m)}</div><div class="status">${badge(m)}</div><div class="row-meta">${time(m.durationSeconds??m.recordedSeconds)}<br>${m.modVersion?'Beta '+esc(m.modVersion):'—'}</div><div class="chevron"><a ${attrs} aria-label="${t('details')}">↗</a></div></div>`;}
 function person(p,m){return `<span class="person" data-player-kind="${p.isBot?'bot':'human'}"><span class="person-name"><a ${link({view:'players',profile:p.isBot?p.profile:p.name,kind:p.isBot?'bot':'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${esc(p.name)}</a></span>${badges(p)}${forfeitLoss(p,m)}<small>${p.isBot?`${t('skill')} ${esc(skill(p))} · ${esc(p.styleVariable?t('variable'):(p.style||'—'))}`:t('human')}</small></span>`;}
-function kpis(s){return [['allMatches',s.matches,`${s.fullStats} ${t('fullStats')}`],['gameTime',`${num(s.minutes)} <small>${t('minutes')}</small>`,t('rounds')],['humanWins',s.humanWins,lang==='ru'?'Включая победы в овертайме':'Including overtime wins'],['botWins',s.botWins,lang==='ru'?'Включая технические победы':'Including forfeit wins']].map(([label,val,note])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${typeof val==='number'?num(val):val}</span><span class="note">${esc(note)}</span></div>`).join('');}
+function topKiller(s){
+  const bot=(s.players||[]).filter(p=>p.isBot&&p.wins>0).sort((a,b)=>b.wins-a.wins||a.name.localeCompare(b.name,'en'))[0];
+  const label=lang==='ru'?'Главный бот-убийца:':'Top bot killer:';
+  return `<div class="kpi-killer"><span class="kpi-killer-heading"><span class="kpi-killer-label">${label}</span> ${bot?`<a class="kpi-killer-name" ${link({view:'bots',profile:bot.name,kind:'bot',match:null,achievement:null,awardPlayer:null,awardPage:null,page:null})} title="${lang==='ru'?'Побед над людьми':'Wins over humans'}: ${num(bot.wins)}">${esc(bot.name)}</a>`:'<span class="kpi-killer-name">—</span>'}</span>${bot?badges({isBot:true,profile:bot.name,name:bot.name}):''}</div>`;
+}
+function kpis(s){return [['allMatches',s.matches,`${s.fullStats} ${t('fullStats')}`],['gameTime',`${num(s.minutes)} <small>${t('minutes')}</small>`,t('rounds')],['humanWins',s.humanWins,lang==='ru'?'Включая победы в овертайме':'Including overtime wins'],['botWins',s.botWins,lang==='ru'?'Включая технические победы':'Including forfeit wins']].map(([label,val,note])=>`<div class="kpi" data-kpi="${label}"><span class="label">${t(label)}</span><span class="value">${typeof val==='number'?num(val):val}</span><span class="note">${esc(note)}</span>${overviewHistory(s,label,lang,link)}${label==='gameTime'?winBalance(s,lang):label==='allMatches'?topKiller(s):''}</div>`).join('');}
 function rankTable(rows,map=false,id=map?'maps':'rating'){
   if(rows.some(r=>!r.isBot)||(!rows.length&&view!=='bots'))return averageTable(rows,map,id);
   const data=rows.map((r,i)=>({...r,rank:i+1}));

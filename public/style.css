@@ -141,6 +141,33 @@ html{scroll-padding-top:150px}body{font-size:17px;line-height:1.6}.wrap{max-widt
 .wins-history-line{white-space:nowrap}
 .wins-history-label{color:var(--muted)}
 .wins-history-value{color:var(--text)}
+.overview .kpi{justify-content:flex-start}
+.overview .kpi>.label{margin-top:0;min-height:1.6em;line-height:1.6}
+.overview .kpi>.value{line-height:1.2}
+.overview .hero-card{justify-content:flex-start}
+.overview .hero-card .latest-heading{align-items:start}
+.overview .latest-heading>span:first-child{font-size:15px;line-height:1.6}
+@media(max-width:640px){.overview .latest-heading>span:first-child{font-size:14px}}
+.kpi-history{margin-top:10px;text-align:left;gap:3px}
+.kpi-history .wins-history-line{display:flex;flex-wrap:wrap;gap:0 4px;white-space:normal}
+.kpi-history .wins-history-label,.kpi-history .wins-history-value{display:inline;white-space:nowrap}
+.kpi-players-link{color:var(--accent);font-weight:650;text-decoration:underline;text-underline-offset:2px}
+.win-balance{margin-top:auto;padding-top:16px;display:grid;gap:6px;min-width:0;flex-shrink:0;--balance-human:#16815e;--balance-bot:#bc293e}
+html[data-theme=dark] .win-balance{--balance-human:#85e4bf;--balance-bot:#ff8998}
+.win-balance-labels{display:flex;justify-content:space-between;gap:6px;font-size:11px;line-height:14px;font-variant-numeric:tabular-nums}
+.win-balance-title{font-size:11px;line-height:14px;color:var(--muted)}
+.win-balance-labels>span{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px;min-width:0}
+.win-balance-labels>span:last-child{justify-content:flex-end;text-align:right}
+.win-balance-labels b{white-space:nowrap;font-weight:650}
+.win-balance-human{color:var(--balance-human)}.win-balance-bot{color:var(--balance-bot)}
+.win-balance-bar{display:block;width:100%;height:8px;border-radius:5px;overflow:hidden;background:var(--border)}
+.win-balance-human-fill{fill:var(--balance-human)}.win-balance-bot-fill{fill:var(--balance-bot)}
+.kpi-killer{margin-top:auto;padding-top:12px;min-width:0}
+.kpi-killer-heading{display:block;font-size:11px;line-height:1.5}
+.kpi-killer-label{color:var(--muted)}
+.kpi-killer-name{font-size:14px;font-weight:750;color:var(--accent);overflow-wrap:anywhere}
+a.kpi-killer-name:hover{text-decoration:underline}
+.kpi-killer .achievement-badges{justify-content:flex-start;margin:5px 0 0}
 .victim-wins{font-size:23px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums}
 .victim-forfeits{display:block;font-size:12px;color:var(--muted);line-height:1.4;margin-top:3px}
 .victim-rules{margin:10px 0 18px;color:var(--muted);font-size:14px}.victim-rules summary{cursor:pointer;width:fit-content;padding:4px 0;color:var(--accent)}
