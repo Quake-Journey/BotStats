@@ -109,6 +109,16 @@ end marker before ingestion. Uploads are authenticated and deduplicated by SHA-2
 Invalid files are not added to the rankings. Names are not authenticated accounts.
 This is lightweight statistics, separate from Competition mode.
 
+The watcher tolerates demos being renamed while it scans (for example when the
+recorder adds the final score to a filename). A vanished path is deferred; the
+next poll discovers the new filename. A failing subdirectory or temporary file
+access error does not prevent processing other files. Watch mode also reports
+cycle/queue errors and retries at the configured polling interval without
+resetting the saved import state. Only a missing state file starts a new state;
+unreadable or malformed state is preserved for recovery. One-shot mode still
+returns a nonzero exit code on errors. Updating this watcher does not require
+clearing the queue, changing the decoder or reimporting completed demos.
+
 ## Результаты и рейтинг
 
 - Победный рейтинг людей: сумма победных очков B × K; прежние коэффициенты длительности и скилла сохранены.
