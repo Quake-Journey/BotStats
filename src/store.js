@@ -1,6 +1,8 @@
 import { MongoClient } from 'mongodb';
 import {computeAchievements,publicAchievements,achievementDetail} from './achievements.js';
 import {buildDynamics} from './dynamics.js';
+import {buildChart,chartTypes,chartProjection,chartSelection,chartCacheKey,makeChartCache} from './charts.js';
+import {buildHome,homeProjection} from './home.js';
 import {buildBotVictims} from './bot-victims.js';
 import { ratingPolicy, matchPoints, victoryPoints, resultKnown, ratingDetails, botDifficulty, victoryDuration } from '../public/rating.js';
 import {humanPerformance} from '../public/performance-rating.js';
@@ -146,6 +148,17 @@ export async function openStore(config) {
   await demos.createIndex({'matches.participants.name':1});
   const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion'}]}}},...matchResultStages()];
   let awardRevision=0,awardCache=null,awardPending=null;
+  const chartCache=makeChartCache(),homeCache=makeChartCache({limit:8});
+  async function chartData(type,query){
+    if(!chartTypes.includes(type)&&type!=='balance')throw Object.assign(new Error('Unknown chart'),{status:400});
+    const allowed=['period','from','to','q','map','bot','style','skill','modVersion','overtime','identity','kind','chartResults'];
+    const selected=Object.fromEntries(allowed.filter(k=>query[k]).map(k=>[k,String(query[k]).slice(0,128)]));
+    const now=new Date(),range={...selected,...periodBounds(selected.period,now)};
+    return chartCache.get(chartCacheKey(type,range),async()=>{
+      const rows=await demos.aggregate([...base(),{$match:filters(selected,now)},{$project:chartProjection(type)}],{maxTimeMS:5000}).toArray();
+      return {rows,value:buildChart(rows,type,range,now)};
+    });
+  }
   async function awardIndex(){
     const revision=awardRevision;
     if(awardCache?.revision===revision&&Date.now()-awardCache.at<30000)return awardCache.value;
@@ -161,7 +174,25 @@ export async function openStore(config) {
   }
   return {
     close:()=>client.close(),ping:()=>db.command({ping:1}),demo:sha=>demos.findOne({_id:sha}),
-    async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});awardRevision++;awardCache=null;},
+    async save(manifest){await demos.replaceOne({_id:manifest.demo.sha256},{_id:manifest.demo.sha256,...manifest,importedAt:new Date()},{upsert:true,writeConcern:{w:1,j:true}});awardRevision++;awardCache=null;chartCache.clear();homeCache.clear();},
+    async home(query){
+      const now=new Date(),filter=filters(query,now);
+      return homeCache.get(JSON.stringify(filter),async()=>{
+        const [result]=await demos.aggregate([...base(),{$match:filter},{$facet:{
+          counts:[{$project:homeProjection}],
+          latest:[{$sort:{startedAt:-1,id:1}},{$limit:1},{$project:{_id:0,id:1,map:1,startedAt:1,status:1,winnerIndex:1,overtime:1,overtimeKind:1,modes:1,
+            'participants.name':1,'participants.profile':1,'participants.isBot':1,'participants.score':1,'participants.skill':1,'participants.style':1,'participants.skillVariable':1,'participants.styleVariable':1}}]
+        }}],{maxTimeMS:5000}).toArray();
+        return {...buildHome(result.counts,now),latest:result.latest[0]||null};
+      });
+    },
+    async chart(type,query){return (await chartData(type,query)).value;},
+    async chartMatches(type,query){
+      if(!chartTypes.includes(type)||type==='items')throw Object.assign(new Error('Unsupported chart selection'),{status:400});
+      const {rows}=await chartData(type,query),ids=chartSelection(rows,type,query),page=Math.max(1,Math.min(10000,Math.floor(Number(query.chartPage)||1))),limit=20;
+      const items=await demos.aggregate([...base(),{$match:{id:{$in:ids}}},{$sort:{startedAt:-1,id:1}},{$skip:(page-1)*limit},{$limit:limit},{$project:{events:0,stateHistory:0,scoreHistory:0,recordedSettings:0,gameplay:0}}],{maxTimeMS:5000}).toArray();
+      return {items,total:ids.length,page,pages:Math.ceil(ids.length/limit)};
+    },
     async achievements(){return publicAchievements(await awardIndex());},
     async achievement(id,query){return achievementDetail(await awardIndex(),id,query);},
     async victims(query){

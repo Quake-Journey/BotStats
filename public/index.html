@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./assets/dynamics.css">
   <link rel="stylesheet" href="./assets/online.css">
   <link rel="stylesheet" href="./assets/gameplay.css">
+  <link rel="stylesheet" href="./assets/card-motion.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content / К содержимому</a>
@@ -28,11 +29,11 @@
   <button type="button" id="copy-server" data-i18n="copyConnect">Копировать connect</button>
 </nav>
   <div class="preferences">
-    <label class="sr" for="theme" data-i18n="theme">Тема</label><select id="theme"><option value="auto">◐ Системная</option><option value="dark">☾ Тёмная</option><option value="light">☀ Светлая</option></select>
+    <label class="sr" for="theme" data-i18n="theme">Тема</label><select id="theme"><option value="auto">◐ Системная</option><option value="dark">☾ Тёмная</option><option value="light">☀ Светлая</option><option value="judgment">◉ Судный день</option></select>
     <label class="sr" for="language">Language / Язык</label><select id="language"><option value="ru">RU</option><option value="en">EN</option></select>
   </div>
 </div></header>
-<main id="main" class="wrap" tabindex="-1"><div id="content" aria-live="polite"><div class="loading">Загрузка матчей / Loading matches…</div></div></main>
+<main id="main" class="wrap" tabindex="-1"><div id="shared-shell"></div><div id="content" aria-live="polite"><div class="loading">Загрузка матчей / Loading matches…</div></div></main>
 <footer class="wrap footer"><span>Q2PRO-X <b>BOTSTATS</b> by ly · <a href="https://github.com/Quake-Journey/BotStats" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span><span data-i18n="footer">Реальные матчи. Статистика из MVD.</span></footer>
 <script type="module" src="./assets/app.js"></script>
 </body></html>

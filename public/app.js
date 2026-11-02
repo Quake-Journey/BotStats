@@ -19,13 +19,15 @@ import {ratingPolicy,matchPoints,victoryPoints,victoryDuration,botDifficulty,bot
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const currentPath=location.pathname.replace(/\/$/,''),base=currentPath.endsWith('/about')?currentPath.slice(0,-6):currentPath,params=new URLSearchParams(location.search);
 if(currentPath.endsWith('/about'))params.set('view','about');
-let lang=window.botstatsLang||'ru',theme=window.botstatsTheme||'auto',facets={},view=params.get('view')||'rating',selectedWeaponPlayer=Number(params.get('weapon'))===1?1:0;
+let lang=window.botstatsLang||'ru',theme=window.botstatsTheme||'auto',facets={},view=params.get('view')||(params.has('ranking')?'rating':'home'),selectedWeaponPlayer=Number(params.get('weapon'))===1?1:0;
 const dict={
 ru:{mainSite:'Основной сайт ↗',theme:'Тема',auto:'Системная',dark:'Тёмная',light:'Светлая',footer:'Реальные матчи. Статистика из MVD.',eyebrow:'Человек против бота',title:'Каждый матч.<br><span>В деталях.</span>',intro:'Кто точнее стрелял, кто забирал броню и как менялся счёт. Вся история противостояния с ботами Q2PRO-X.',latest:'Последний матч',matches:'Матчи',players:'Игроки',bots:'Боты',allMatches:'Всего матчей',humanWins:'Победы людей',botWins:'Победы ботов',gameTime:'Время в игре',minutes:'мин',finished:'завершённых',interruptedShort:'прервано',results:'матчей',all:'Все',search:'Игрок или бот',searchHint:'Ник, например q или David…',map:'Карта',bot:'Бот',style:'Стиль',skill:'Скилл',version:'Версия мода',status:'Результат',from:'С даты',to:'По дату',moreFilters:'Скилл, версия, даты и результат',reset:'Сбросить',copy:'Скопировать ссылку',copied:'Скопировано',apply:'Найти',match:'Матч',date:'Дата',duration:'Длительность',completed:'Завершён',forfeit:'Forfeit',interrupted:'Прерван',variable:'Переменный',empty:'По этим условиям матчей пока нет.',error:'Не удалось загрузить статистику.',retry:'Повторить',back:'← Все матчи',download:'↓ Скачать MVD',human:'Игрок',botType:'Бот',scoreProgress:'Как менялся счёт',comparison:'Итоги матча',damage:'Нанесённый урон',received:'Полученный урон',kills:'Убийства',deaths:'Смерти',suicides:'Самоубийства',telefrags:'Телефраги',weapons:'Оружие',accuracy:'Точность',hits:'Попадания / выстрелы',items:'Подборы предметов',control:'Контроль главных предметов',events:'События матча',settings:'Настройки бота по ходу матча',ping:'Средний пинг',pingNote:'По записям таблицы счёта; одно значение учитывается не дольше 5 секунд. Это не непрерывный сетевой замер.',observed:'наблюдений',coverage:'сек. наблюдения',noStats:'Подробная итоговая статистика урона, оружия и подборов в этой записи отсутствует или неполна. Это не мешает учитывать подтверждённый результат и рейтинг при достаточных данных для расчёта.',partial:'Начало матча в записи не подтверждено. Указана длительность записанного фрагмента.',interruptedNote:'Матч прерван. Показан последний зафиксированный счёт; победа по нему автоматически не начисляется.',noVersion:'Версия не записана',serverTime:'Время сервера · МСК',ratingNote:'Сортировка по победам. Процент побед — только по завершённым матчам. Прерванные игры сохраняются отдельно; очки Competition не применяются.',wins:'Победы',losses:'Поражения',winRate:'Победы, %',averageScore:'Средний счёт',averageDamage:'Средний урон',details:'Открыть матч',prev:'← Назад',next:'Далее →',page:'Страница',of:'из',unknown:'Нет данных',player:'Участник',fullStats:'с полной статистикой',itemsNote:'Количество фактических подборов, включая выпавшие предметы. Контроль — счётчики подбора предметов карты.',damageNote:'Полученный урон включает урон от собственных выстрелов по правилам серверной статистики.',skillTimeline:'Скилл',styleTimeline:'Изменения стиля',recorded:'записанный фрагмент',rawEvents:'Сообщения сервера приведены в оригинале.',allMaps:'Все карты',matchCount:'Матчей',showProfile:'Матчи участника',noPing:'Пинг не записан',loading:'Загрузка матчей…',json:'Скачать JSON',rounds:'За выбранный период'},
 en:{mainSite:'Main website ↗',theme:'Theme',auto:'System',dark:'Dark',light:'Light',footer:'Real matches. Statistics from MVD.',eyebrow:'Human versus bot',title:'Every match.<br><span>Every detail.</span>',intro:'Accuracy, armor control and every turn of the score. Explore your matches against Q2PRO-X bots.',latest:'Latest match',matches:'Matches',players:'Players',bots:'Bots',allMatches:'Total matches',humanWins:'Human wins',botWins:'Bot wins',gameTime:'Time played',minutes:'min',finished:'finished',interruptedShort:'interrupted',results:'matches',all:'All',search:'Player or bot',searchHint:'Nickname, e.g. q or David…',map:'Map',bot:'Bot',style:'Style',skill:'Skill',version:'Mod version',status:'Result',from:'From date',to:'To date',moreFilters:'Skill, version, dates and result',reset:'Reset',copy:'Copy link',copied:'Copied',apply:'Search',match:'Match',date:'Date',duration:'Duration',completed:'Finished',forfeit:'Forfeit',interrupted:'Interrupted',variable:'Variable',empty:'No matches match these filters yet.',error:'Could not load statistics.',retry:'Retry',back:'← All matches',download:'↓ Download MVD',human:'Player',botType:'Bot',scoreProgress:'Score over time',comparison:'Match summary',damage:'Damage dealt',received:'Damage received',kills:'Kills',deaths:'Deaths',suicides:'Suicides',telefrags:'Telefrags',weapons:'Weapons',accuracy:'Accuracy',hits:'Hits / shots',items:'Item pickups',control:'Major item control',events:'Match events',settings:'Bot settings throughout the match',ping:'Average ping',pingNote:'From scoreboard observations; a value is held for at most 5 seconds. This is not a continuous network measurement.',observed:'observations',coverage:'seconds observed',noStats:'Detailed final damage, weapon and pickup statistics are missing or incomplete in this recording. A confirmed result can still count towards ratings when the required scoring data is available.',partial:'The start of this match is not confirmed in the recording. Duration refers to the recorded fragment.',interruptedNote:'The match was interrupted. This is the last recorded score; it does not automatically count as a win.',noVersion:'Version not recorded',serverTime:'Server time · MSK',ratingNote:'Sorted by wins. Win rate uses finished matches only. Interrupted matches are retained separately; Competition points are not applied.',wins:'Wins',losses:'Losses',winRate:'Win rate, %',averageScore:'Average score',averageDamage:'Average damage',details:'Open match',prev:'← Previous',next:'Next →',page:'Page',of:'of',unknown:'Unavailable',player:'Participant',fullStats:'with full stats',itemsNote:'Actual pickup counts, including dropped items. Control uses the server counters for map items.',damageNote:'Received damage includes self-damage, following the server statistics.',skillTimeline:'Skill',styleTimeline:'Style changes',recorded:'recorded fragment',rawEvents:'Server messages are shown in their original language.',allMaps:'All maps',matchCount:'Matches',showProfile:'Participant matches',noPing:'Ping not recorded',loading:'Loading matches…',json:'Download JSON',rounds:'For the selected period'}
 };
 Object.assign(dict.ru,{interrupted:'Нет результата',interruptedNote:'По правилу BotStats прерванная игра человека с ботом считается forfeit: техническое поражение человека и победа бота независимо от счёта.'});
 Object.assign(dict.en,{interrupted:'No result',interruptedNote:'Under BotStats rules, an interrupted human-versus-bot game counts as a forfeit: the human loses and the bot wins regardless of the score.'});
+Object.assign(dict.ru,{home:'Главная'});
+Object.assign(dict.en,{home:'Home'});
 Object.assign(dict.ru,{mainFilters:'Период, игрок, карта, бот и стиль'});
 Object.assign(dict.en,{mainFilters:'Period, player, map, bot and style'});
 Object.assign(dict.ru,{achievements:'Достижения',dynamics:'Динамика'});
@@ -132,33 +134,34 @@ const routes=createNavigation({base,params,getPreferences:()=>({lang,theme})});
 const {url,link}=routes;
 function writeLocation(mode='replace'){history[mode+'State'](null,'',url({}, {hash:location.hash}));routes.sync(document);}
 async function api(endpoint){const r=await fetch(base+'/api/'+endpoint);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
-function applyTheme(){document.documentElement.dataset.theme=theme==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;try{localStorage.setItem('botstats.theme',theme);}catch(e){}}
-function preferences(){document.documentElement.lang=lang;document.title=(view==='about'?t('aboutRating')+' · ':view==='achievements'?t('achievements')+' · ':view==='dynamics'?t('dynamics')+' · ':(defeatView()||view==='victims'||view==='players'||view==='rating')?t(view)+' · ':'')+'BotStats · Q2PRO-X';routes.bind($('.brand'),{}, {home:true});routes.bind($('#about-link'),{view:'about',match:null,profile:null,kind:null,page:null});$('#about-link').setAttribute('aria-current',view==='about'?'page':'false');document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));$('#theme').value=theme;$('#language').value=lang;for(const o of $('#theme').options)o.textContent=({auto:'◐ ',dark:'☾ ',light:'☀ '}[o.value])+t(o.value);}
+function applyTheme(){document.documentElement.dataset.theme=theme==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;try{localStorage.setItem('botstats.theme',theme);}catch(e){}syncJudgment();}
+function preferences(){document.documentElement.lang=lang;document.title=(view==='about'?t('aboutRating')+' · ':view==='achievements'?t('achievements')+' · ':(view==='dynamics'||view==='charts')?t(view)+' · ':(defeatView()||view==='victims'||view==='players'||view==='rating')?t(view)+' · ':'')+'BotStats · Q2PRO-X';routes.bind($('.brand'),{}, {home:true});routes.bind($('#about-link'),{view:'about',match:null,profile:null,kind:null,page:null});$('#about-link').setAttribute('aria-current',view==='about'?'page':'false');document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));$('#theme').value=theme;$('#language').value=lang;for(const o of $('#theme').options)o.textContent=({auto:'◐ ',dark:'☾ ',light:'☀ ',judgment:'◉ '}[o.value])+t(o.value);}
 $('#theme').onchange=e=>{theme=e.target.value;applyTheme();writeLocation();};
 $('#language').onchange=e=>{lang=e.target.value;try{localStorage.setItem('botstats.lang',lang);}catch(err){}writeLocation();preferences();render();};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(theme==='auto')applyTheme();});
-window.addEventListener('popstate',()=>{[...params.keys()].forEach(k=>params.delete(k));new URLSearchParams(location.search).forEach((v,k)=>params.set(k,v));if(location.pathname.replace(/\/$/,'').endsWith('/about'))params.set('view','about');view=params.get('view')||'rating';lang=['ru','en'].includes(params.get('lang'))?params.get('lang'):lang;theme=['auto','dark','light'].includes(params.get('theme'))?params.get('theme'):theme;selectedWeaponPlayer=Number(params.get('weapon'))===1?1:0;applyTheme();routes.sync(document);render();});
+window.addEventListener('popstate',()=>{[...params.keys()].forEach(k=>params.delete(k));new URLSearchParams(location.search).forEach((v,k)=>params.set(k,v));if(location.pathname.replace(/\/$/,'').endsWith('/about'))params.set('view','about');view=params.get('view')||(params.has('ranking')?'rating':'home');lang=['ru','en'].includes(params.get('lang'))?params.get('lang'):lang;theme=['auto','dark','light','judgment'].includes(params.get('theme'))?params.get('theme'):theme;selectedWeaponPlayer=Number(params.get('weapon'))===1?1:0;applyTheme();routes.sync(document);render();});
 function options(values,label=t('all')){return `<option value="">${esc(label)}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(v==='variable'?t('variable'):v)}</option>`).join('');}
 function field(key,label,content){return `<div class="field"><label for="f-${key}">${t(label)}</label>${content}</div>`;}
 function select(key,label,values){return field(key,label,`<select id="f-${key}" name="${key}">${options(values)}</select>`);}
 const overviewMobile=matchMedia('(max-width:800px)');
-function overviewHome(){return view==='rating'&&rankingMode()==='victory';}
-function hero(){return `<section class="overview ${overviewHome()?'overview-home':'overview-secondary'}" aria-label="${t('overview')}"><details class="overview-fold" data-overview="overviewStats" open><summary>${t('overview')}</summary><div class="kpis" id="kpis"></div></details><details class="overview-fold" data-overview="overviewLatest" open><summary>${t('latest')}</summary><div class="hero-card" id="latest"><div class="loading">${t('loading')}</div></div></details></section>`;}
+function isHome(){return view==='home'&&!params.has('match')&&!params.has('profile')&&!params.has('achievement');}
+function overviewHome(){return isHome();}
+function hero(){return `<section class="overview overview-secondary" aria-label="${t('overview')}"><details class="overview-fold" data-overview="overviewStats" open><summary>${t('overview')}</summary><div class="kpis" id="kpis"></div></details><details class="overview-fold" data-overview="overviewLatest" open><summary>${t('latest')}</summary><div class="hero-card" id="latest"><div class="loading">${t('loading')}</div></div></details></section>`;}
 function mountOverview(){
   for(const panel of document.querySelectorAll('[data-overview]')){
-    const key=panel.dataset.overview;panel.open=!overviewMobile.matches||overviewHome()||params.get(key)==='1';
-    panel.ontoggle=()=>{if(!panel.isConnected||!overviewMobile.matches||overviewHome())return;if(panel.open===(params.get(key)==='1'))return;params.set(key,panel.open?'1':'0');writeLocation();};
+    const key=panel.dataset.overview;panel.open=!overviewMobile.matches||params.get(key)==='1';
+    panel.ontoggle=()=>{if(!panel.isConnected||!overviewMobile.matches)return;if(panel.open===(params.get(key)==='1'))return;params.set(key,panel.open?'1':'0');writeLocation();};
   }
 }
 overviewMobile.addEventListener('change',mountOverview);
-function navigation(){return `<nav class="tabs" aria-label="${t('matches')}">${['rating','matches','online','players','bots','defeats','victims','botdefeats','dynamics','achievements'].map(v=>`<a class="tab" data-view="${v}" ${link({view:v,match:null,profile:null,kind:null,achievement:null,awardPlayer:null,awardPage:null,page:null})} aria-current="${view===v?'page':'false'}" aria-selected="${view===v}">${t(v)}</a>`).join('')}</nav>`;}
+function navigation(){return `<nav class="tabs" aria-label="${t('matches')}">${['home','rating','matches','online','players','bots','defeats','victims','botdefeats','dynamics','charts','achievements'].map(v=>`<a class="tab" data-view="${v}" ${link({view:v,match:null,profile:null,kind:null,achievement:null,awardPlayer:null,awardPage:null,page:null},v==='home'?{home:true}:{})} aria-current="${view===v?'page':'false'}" aria-selected="${view===v}">${t(v)}</a>`).join('')}</nav>`;}
 function badges(p){return achievementBadges(awardCatalog,p.isBot?(p.profile||p.name.replace(/(?:\[\d+\]|>\d+)$/,'')):p.name,{lang,link,kind:p.isBot?'bot':'human'});}
 function listShell(){
-  const trend=view==='dynamics';
+  const trend=view==='dynamics',graphs=view==='charts';
   const optional=trend?'':field('overtime','overtimeFilter',`<select id="f-overtime" name="overtime"><option value="">${t('all')}</option><option value="1">${t('overtimeOnly')}</option></select>`)+select('skill','skill',[...(facets.skills||[]),'variable']);
-  const status=trend||(view==='rating'&&rankingMode()==='forfeits')?'':field('status','status',`<select id="f-status" name="status"><option value="">${t('all')}</option>${['completed','forfeit','interrupted'].map(s=>`<option value="${s}">${t(s)}</option>`).join('')}</select>`);
+  const status=trend||graphs||(view==='rating'&&rankingMode()==='forfeits')?'':field('status','status',`<select id="f-status" name="status"><option value="">${t('all')}</option>${['completed','forfeit','interrupted'].map(s=>`<option value="${s}">${t(s)}</option>`).join('')}</select>`);
   const advancedKeys=trend?['modVersion','from','to']:['skill','modVersion','status','from','to','overtime'];
-  return `${trend?'':hero()}<section class="workspace"><div class="workspace-head">${navigation()}<span class="refresh">${t('serverTime')}</span></div><form id="filters" class="filter-panel"><details class="primary-filters" ${params.get('filters')==='1'?'open':''}><summary>${t('mainFilters')}</summary><div class="filters">${periodSelect()}${field('q',view==='players'?(lang==='ru'?'Ник игрока':'Player name'):'search',`<input id="f-q" name="q" type="search" placeholder="${view==='players'?(lang==='ru'?'Ник, например pp или q':'Name, for example pp or q'):t('searchHint')}" maxlength="80" autocomplete="off">`)}${select('map','map',facets.maps||[])}${select('bot','bot',facets.bots||[])}${select('style','style',facets.styles||[])}</div></details><details class="advanced" ${(params.has('advanced')?params.get('advanced')==='1':advancedKeys.some(k=>params.has(k)))?'open':''}><summary>${trend?(lang==='ru'?'Версия и даты':'Version and dates'):t('moreFilters')}</summary><div class="filters">${optional}${select('modVersion','version',facets.versions||[])}${status}${field('from','from','<input id="f-from" name="from" type="date">')}${field('to','to','<input id="f-to" name="to" type="date">')}</div></details><div class="filter-bottom"><button type="submit">${t('apply')}</button><button type="button" id="reset">${t('reset')}</button><button type="button" id="copy">${t('copy')}</button><span class="sub">${t('periodNote')}</span><span class="result-count" id="count"></span></div></form><div id="results"><div class="loading">${t('loading')}</div></div></section>`;
+  return `<section class="workspace ${graphs?'charts-workspace':''}"><form id="filters" class="filter-panel"><details class="primary-filters" ${params.get('filters')==='1'?'open':''}><summary>${t('mainFilters')}</summary><div class="filters">${periodSelect()}${field('q',view==='players'?(lang==='ru'?'Ник игрока':'Player name'):'search',`<input id="f-q" name="q" type="search" placeholder="${view==='players'?(lang==='ru'?'Ник, например pp или q':'Name, for example pp or q'):t('searchHint')}" maxlength="80" autocomplete="off">`)}${select('map','map',facets.maps||[])}${select('bot','bot',facets.bots||[])}${select('style','style',facets.styles||[])}</div></details><details class="advanced" ${(params.has('advanced')?params.get('advanced')==='1':advancedKeys.some(k=>params.has(k)))?'open':''}><summary>${trend?(lang==='ru'?'Версия и даты':'Version and dates'):t('moreFilters')}</summary><div class="filters">${optional}${select('modVersion','version',facets.versions||[])}${status}${field('from','from','<input id="f-from" name="from" type="date">')}${field('to','to','<input id="f-to" name="to" type="date">')}</div></details><div class="filter-bottom"><button type="submit">${t('apply')}</button><button type="button" id="reset">${t('reset')}</button><button type="button" id="copy">${t('copy')}</button><span class="sub">${t('periodNote')}</span><span class="result-count" id="count"></span></div></form><div id="results"><div class="loading">${t('loading')}</div></div></section>`;
 }
 function matchRow(m){const attrs=link({view:'matches',match:m.id,profile:null,achievement:null,awardPlayer:null,awardPage:null});return `<div class="match-row"><div><a ${attrs}><div class="map-name ${esc(m.map)}">${esc(m.map)}</div><div class="date">${esc(date(m.startedAt))}</div></a></div><div class="duel">${person(m.participants[0],m)}<a class="score-link" ${attrs} aria-label="${t('details')}">${score(m)}</a>${person(m.participants[1],m)}</div><div class="status">${badge(m)}</div><div class="row-meta">${time(m.durationSeconds??m.recordedSeconds)}<br>${m.modVersion?'Beta '+esc(m.modVersion):'—'}</div><div class="chevron"><a ${attrs} aria-label="${t('details')}">↗</a></div></div>`;}
 function person(p,m){return `<span class="person" data-player-kind="${p.isBot?'bot':'human'}"><span class="person-name"><a ${link({view:'players',profile:p.isBot?p.profile:p.name,kind:p.isBot?'bot':'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${esc(p.name)}</a></span>${badges(p)}${forfeitLoss(p,m)}<small>${p.isBot?botSettings(p):t('human')}</small></span>`;}
@@ -294,13 +297,13 @@ async function refreshDynamics(){
   }catch(e){if(request===requestId&&$('#results')){$('#results').innerHTML=`<div class="error">${t('error')} <button id="retry">${t('retry')}</button></div>`;$('#retry').onclick=refreshDynamics;}}
 }
 
-async function refresh(){if(view==='dynamics')return refreshDynamics();const request=++requestId,q=new URLSearchParams();for(const k of qfields)if(params.has(k))q.set(k,params.get(k));if(view==='rating'&&rankingMode()==='forfeits')q.delete('status');if(view==='players')q.set('playerSearch','1');if(defeatView()){q.set(view==='botdefeats'?'botDefeats':'humanDefeats','1');q.set('sort_matches',params.get('sort_'+view)||'margin');q.set('dir_matches',params.get('dir_'+view)||'desc');}try{const [r,s,v]=await Promise.all([api('matches?'+q),api('summary?'+q),view==='victims'?api('victims?'+q):null]);if(request!==requestId||!$('#results'))return;$('#kpis').innerHTML=kpis(s);$('#count').textContent=view==='players'?`${num(s.players.filter(p=>!p.isBot).length)} ${lang==='ru'?'участников':'players'}`:v?`${num(v.total)} ${t('pairs')}`:`${num(r.total)} ${t('results')}`;const latest=(defeatView()||params.has('sort_matches')&&params.get('sort_matches')!=='date'||params.get('dir_matches')==='asc'||Number(params.get('page'))>1)?(await api('matches?'+new URLSearchParams([...q].filter(([k])=>!['sort_matches','dir_matches','page'].includes(k))))).items[0]:r.items[0];$('#latest').innerHTML=latest?`<div class="mini-label latest-heading"><span>${t('latest')}</span><span class="latest-result">${resultBadge(latest)}</span><span class="latest-map">${esc(latest.map)}</span></div><div class="latest-match"><div class="hero-score">${person(latest.participants[0],latest)}<a class="score-link" ${link({match:latest.id})} aria-label="${t('details')}">${score(latest)}</a>${person(latest.participants[1],latest)}</div><div class="mini-label"><span>${esc(date(latest.startedAt))}</span>${modeBadges(latest,lang)}</div></div>`:`<p>${t('empty')}</p>`;
+async function refresh(){const overviewEpoch=renderEpoch;await refreshOverview(overviewEpoch);if(overviewEpoch!==renderEpoch)return;syncJudgment();if(view==='charts')return refreshCharts();if(view==='dynamics')return refreshDynamics();const request=++requestId,q=new URLSearchParams();for(const k of qfields)if(params.has(k))q.set(k,params.get(k));if(view==='rating'&&rankingMode()==='forfeits')q.delete('status');if(view==='players')q.set('playerSearch','1');if(defeatView()){q.set(view==='botdefeats'?'botDefeats':'humanDefeats','1');q.set('sort_matches',params.get('sort_'+view)||'margin');q.set('dir_matches',params.get('dir_'+view)||'desc');}try{const [r,s,v]=await Promise.all([api('matches?'+q),api('summary?'+q),view==='victims'?api('victims?'+q):null]);if(request!==requestId||!$('#results'))return;$('#count').textContent=view==='players'?`${num(s.players.filter(p=>!p.isBot).length)} ${lang==='ru'?'участников':'players'}`:v?`${num(v.total)} ${t('pairs')}`:`${num(r.total)} ${t('results')}`;
   $('#results').innerHTML=view==='players'?playersPage(s,{lang,params,link,badges}):view==='victims'?victimResults(v):defeatView()?defeatResults(r):view==='matches'?(r.items.length?`<div class="match-list">${matchHeaders()}${r.items.map(matchRow).join('')}</div>${matchPagination(r,{lang})}`:`<div class="empty">${t('empty')}</div>`):ratingLeaders(s);
   document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{params.set('page',b.dataset.page);writeLocation('push');refresh();});
   mountAchievementBadges();
 }catch(e){if($('#results'))$('#results').innerHTML=`<div class="error">${t('error')} <button id="retry">${t('retry')}</button></div>`;if($('#retry'))$('#retry').onclick=refresh;}}
 function mountFilters(){for(const [selector,key] of [['.primary-filters','filters'],['.advanced','advanced']]){const section=$(selector);section.ontoggle=()=>{if(!section.isConnected)return;params.set(key,section.open?'1':'0');writeLocation();};}for(const k of qfields){const input=$('#f-'+k);if(input)input.value=params.get(k)||(k==='period'?'all':'');}let debounce;
-  const submit=()=>{for(const [k,v]of new FormData($('#filters'))){if(v)params.set(k,v);else params.delete(k);}params.delete('page');writeLocation();refresh();};
+  const submit=()=>{for(const [k,v]of new FormData($('#filters'))){if(v)params.set(k,v);else params.delete(k);}params.delete('page');if(view==='charts')resetChartSelection();writeLocation();refresh();};
   $('#filters').onsubmit=e=>{e.preventDefault();clearTimeout(debounce);submit();};$('#filters').onchange=e=>{if(e.target.id==='f-period'&&e.target.value!=='custom'){$('#f-from').value='';$('#f-to').value='';}if(e.target.id==='f-from'||e.target.id==='f-to')$('#f-period').value='custom';submit();};$('#f-q').oninput=()=>{clearTimeout(debounce);debounce=setTimeout(submit,300);};
   $('#reset').onclick=()=>{qfields.forEach(k=>params.delete(k));writeLocation();render();};$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);$('#copy').textContent=t('copied');}catch(e){$('#copy').textContent=t('copy');window.prompt(t('copy'),location.href);}};
 }
@@ -381,17 +384,91 @@ async function detail(id,epoch){const m=await api('matches/'+encodeURIComponent(
 Object.assign(dict.ru,{ratingNote:'Forfeit всегда означает поражение человека и победу бота. Они уже входят в общие итоги; отдельная колонка показывает их количество. Овертайм — дополнительное время при равном счёте, включая Sudden Death. Средние очки за матч считаются только по играм, для которых удалось определить очки.'});
 Object.assign(dict.en,{ratingNote:'A forfeit always means a human loss and a bot win. These are included in the totals and also shown in a separate column. Overtime is extra time after a tied score, including Sudden Death. Average points per match uses only games whose point award could be determined.'});
 Object.assign(dict.ru,{online:'Онлайн'});Object.assign(dict.en,{online:'Online'});
+
+Object.assign(dict.ru,{charts:'Графики',judgment:'Судный день'});Object.assign(dict.en,{charts:'Charts',judgment:'Judgment Day'});
+let homeData=null,overviewCache=null,awardsCache=null,overviewRequest=0;
+const overviewKeys=['q','map','bot','style','skill','modVersion','status','from','to','period','overtime'];
+function overviewQuery(){const q=new URLSearchParams();for(const k of overviewKeys)if(params.has(k))q.set(k,params.get(k));return q;}
+function mountSharedShell(){
+  const shell=$('#shared-shell');
+  if(!shell.firstElementChild)shell.innerHTML='<div class="workspace-head shared-tabs"></div>'+hero();
+  shell.querySelector('.overview').hidden=!isHome();
+  shell.querySelector('.shared-tabs').innerHTML=navigation()+`<span class="refresh">${t('serverTime')}</span>`;
+  const labels=[t('overview'),t('latest')];shell.querySelectorAll('.overview-fold>summary').forEach((el,i)=>el.textContent=labels[i]);
+  mountOverview();
+}
+async function refreshOverview(epoch){
+  const serial=++overviewRequest,q=overviewQuery(),key=q.toString(),now=Date.now();
+  const [data,awards]=await Promise.all([
+    overviewCache?.key===key&&now-overviewCache.at<20000?overviewCache.data:api('home?'+q),
+    awardsCache&&now-awardsCache.at<30000?awardsCache.data:api('achievements')
+  ]);
+  if(epoch!==renderEpoch||serial!==overviewRequest)return;
+  overviewCache={key,data,at:now};awardsCache={data:awards,at:now};homeData=data;awardCatalog=awards;
+  $('#kpis').innerHTML=kpis(data);
+  const latest=data.latest;
+  $('#latest').innerHTML=latest?`<div class="mini-label latest-heading"><span>${t('latest')}</span><span class="latest-result">${resultBadge(latest)}</span><span class="latest-map">${esc(latest.map)}</span></div><div class="latest-match"><div class="hero-score">${person(latest.participants[0],latest)}<a class="score-link" ${link({match:latest.id})} aria-label="${t('details')}">${score(latest)}</a>${person(latest.participants[1],latest)}</div><div class="mini-label"><span>${esc(date(latest.startedAt))}</span>${modeBadges(latest,lang)}</div></div>`:`<p>${t('empty')}</p>`;
+  mountAchievementBadges();syncJudgment();
+}
+async function showHome(epoch){
+  const module=await import('./home-ui.js');if(epoch!==renderEpoch)return;
+  if(!document.getElementById('home-css')){const css=document.createElement('link');css.id='home-css';css.rel='stylesheet';css.href=new URL('./home.css',import.meta.url);document.head.append(css);}
+  $('#content').innerHTML=module.homePage(homeData,{lang,link,badges});syncJudgment();
+}
+let themeModule=null;
+function syncJudgment(){
+  if(theme!=='judgment'){themeModule?.clearJudgment();return;}
+  import('./judgment-theme.js').then(module=>{themeModule=module;if(theme==='judgment')module.updateJudgment({base,params,summary:homeData});});
+}
+let chartsCleanup=()=>{},chartsAbort=null,chartsRequest=0,chartsModule=null,chartLast=null;
+const chartQueryKeys=['period','from','to','q','map','bot','style','skill','modVersion','overtime','chartResults'];
+function resetChartSelection(){for(const k of ['bucket','bucketFrom','bucketTo','chartOutcome','chartPage','chartPoint'])params.delete(k);}
+async function refreshCharts(){
+  const serial=++chartsRequest;chartsAbort?.abort();const controller=new AbortController();chartsAbort=controller;
+  const signal=controller.signal;
+  try{
+    chartsModule=await import('./charts-ui.js');if(serial!==chartsRequest||view!=='charts')return;
+    if(!document.getElementById('charts-css')){const css=document.createElement('link');css.id='charts-css';css.rel='stylesheet';css.href=new URL('./charts.css',import.meta.url);document.head.append(css);}
+    const type=Object.hasOwn(chartsModule.chartNames.en,params.get('chart'))?params.get('chart'):'duration',q=new URLSearchParams();
+    for(const k of chartQueryKeys)if(params.has(k))q.set(k,params.get(k));
+    const key=type+'?'+q;
+    let data;
+    if(chartLast?.key===key&&Date.now()-chartLast.at<20000)data=chartLast.data;
+    else{const response=await fetch(base+'/api/charts/'+type+'?'+q,{signal});if(!response.ok)throw new Error('Chart unavailable');data=await response.json();chartLast={key,data,at:Date.now()};}
+    if(serial!==chartsRequest||view!=='charts'||!$('#results'))return;
+    chartsCleanup();$('#count').textContent=`${data.totals.matches} ${lang==='ru'?'матчей':'games'}`;$('#results').innerHTML=chartsModule.chartsPage(data,{lang,params,link});
+    chartsCleanup=chartsModule.mountCharts($('#results'),{params,data,lang,onChoices:open=>{params.set('chartChoices',open?'1':'0');writeLocation();},
+      onChange:(k,v)=>{params.set(k,v);if(k==='chartResults')resetChartSelection();writeLocation();refreshCharts();},
+      onPoint:value=>{params.set('chartPoint',value);params.delete('bucket');params.delete('bucketFrom');params.delete('bucketTo');writeLocation();refreshCharts();},
+      onNavigate:u=>{[...params.keys()].forEach(k=>params.delete(k));u.searchParams.forEach((v,k)=>params.set(k,v));writeLocation('push');refreshCharts();}
+    });
+    if(params.has('bucket')&&type!=='items'){
+      const area=$('#chart-drilldown');area.textContent=lang==='ru'?'Загрузка матчей…':'Loading games…';
+      const selection=new URLSearchParams(q);for(const k of ['bucket','bucketFrom','bucketTo','chartOutcome','chartPage'])if(params.has(k))selection.set(k,params.get(k));
+      const response=await fetch(base+'/api/chart-matches/'+type+'?'+selection,{signal});if(!response.ok)throw new Error('Selection unavailable');const games=await response.json();
+      if(serial!==chartsRequest||!area.isConnected)return;
+      area.innerHTML=`<div class="chart-drill-title"><h3>${lang==='ru'?'Матчи выбранной группы':'Selected games'} · ${games.total}</h3><button id="chart-clear">${lang==='ru'?'Закрыть':'Close'}</button></div><div class="chart-drill-list">${games.items.length?games.items.map(matchRow).join(''):`<p class="empty">${t('empty')}</p>`}</div>${games.pages>1?`<div class="chart-drill-pager"><button data-chart-page="${games.page-1}" ${games.page<=1?'disabled':''}>←</button><span>${games.page} / ${games.pages}</span><button data-chart-page="${games.page+1}" ${games.page>=games.pages?'disabled':''}>→</button></div>`:''}`;
+      $('#chart-clear').onclick=()=>{resetChartSelection();writeLocation();refreshCharts();};
+      area.querySelectorAll('[data-chart-page]').forEach(b=>b.onclick=()=>{params.set('chartPage',b.dataset.chartPage);writeLocation();refreshCharts();});
+      mountAchievementBadges();
+    }
+  }catch(e){if(e.name==='AbortError'||serial!==chartsRequest)return;if($('#results')){$('#results').innerHTML=`<div class="chart-error">${t('error')} <button id="chart-retry">${t('retry')}</button></div>`;$('#chart-retry').onclick=refreshCharts;}}
+}
+
 let renderEpoch=0,onlineCleanup=()=>{};
 window.addEventListener('pagehide',()=>onlineCleanup());
 window.addEventListener('pageshow',event=>{if(event.persisted)render();});
 async function render(){
+  document.documentElement.dataset.page=isHome()?'home':'inner';
+  chartsAbort?.abort();chartsRequest++;chartsCleanup();chartsCleanup=()=>{};
   dynamicsCleanup();
   onlineCleanup();onlineCleanup=()=>{};
   const epoch=++renderEpoch;requestId++;preferences();$('#content').setAttribute('aria-busy','true');
   try{
+    mountSharedShell();await refreshOverview(epoch);if(epoch!==renderEpoch)return;
     if(view==='about'){$('#content').innerHTML=aboutPage(lang,link({view:null,match:null,profile:null,kind:null,page:null}));if(location.hash)document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();return;}
-    if(view==='online'&&!params.has('match')&&!params.has('profile')){document.title=t('online')+' · BotStats · Q2PRO-X';$('#content').innerHTML=onlinePage(lang,navigation());onlineCleanup=mountOnline($('#content'),{base,lang,params,onState:(key,value)=>{if(value===null)params.delete(key);else params.set(key,value);writeLocation();}});return;}
-    awardCatalog=await api('achievements');if(epoch!==renderEpoch)return;
+    if(view==='online'&&!params.has('match')&&!params.has('profile')){document.title=t('online')+' · BotStats · Q2PRO-X';$('#content').innerHTML=onlinePage(lang,'');onlineCleanup=mountOnline($('#content'),{base,lang,params,onState:(key,value)=>{if(value===null)params.delete(key);else params.set(key,value);writeLocation();}});return;}
+    if(isHome()){await showHome(epoch);return;}
     if(view==='achievements'&&!params.has('match')&&!params.has('profile')){await showAchievements(epoch);return;}
     if(params.has('profile')&&!params.has('match')){await profile(epoch);if(epoch===renderEpoch&&location.hash==='#profile-achievements')document.getElementById('profile-achievements')?.scrollIntoView();return;}
     if(params.has('match')){await detail(params.get('match'),epoch);return;}
@@ -402,14 +479,14 @@ async function render(){
 }
 document.addEventListener('click',e=>{
   const link=e.target.closest('[data-view]');if(!link||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button)return;
-  e.preventDefault();view=link.dataset.view;params.set('view',view);for(const key of ['match','profile','kind','achievement','awardPlayer','awardPage','page'])params.delete(key);writeLocation('push');render();
+  e.preventDefault();const target=new URL(link.href);[...params.keys()].forEach(k=>params.delete(k));target.searchParams.forEach((v,k)=>params.set(k,v));view=params.get('view')||'home';writeLocation('push');render();
 });
 let achievementSearchTimer;
 async function showAchievements(epoch){
   const id=params.get('achievement');let body;
   if(id){let value;try{value=await api('achievements/'+encodeURIComponent(id)+'?'+new URLSearchParams({player:params.get('awardPlayer')||'',page:params.get('awardPage')||'1',sort_award_evidence:params.get('sort_award_evidence')||'date',dir_award_evidence:params.get('dir_award_evidence')||'asc',lang}));}catch(e){if(e.message!=='HTTP 404')throw e;value=null;}if(epoch!==renderEpoch)return;body=achievementPage(value,{lang,link,params});if(value)document.title=value.name[lang]+' · BotStats';}
   else body=achievementsPage(awardCatalog,{lang,link,params});
-  $('#content').innerHTML=`<section class="workspace achievements-workspace"><div class="workspace-head">${navigation()}</div>${body}</section>`;
+  $('#content').innerHTML=`<section class="workspace achievements-workspace">${body}</section>`;
   const input=$('#achievement-search');if(input)input.oninput=()=>{clearTimeout(achievementSearchTimer);achievementSearchTimer=setTimeout(async()=>{const value=input.value,position=input.selectionStart;if(value)params.set('achievementSearch',value);else params.delete('achievementSearch');writeLocation();await render();const next=$('#achievement-search');if(next){next.focus({preventScroll:true});if(position!==null)next.setSelectionRange(position,position);}},250);};
 }
 writeLocation();

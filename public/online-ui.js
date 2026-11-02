@@ -33,7 +33,7 @@ export function liveModesHTML(modes,lang){
 
 export function onlinePage(lang,navigation) {
   const t=strings[lang]||strings.en;
-  return `<section class="workspace online-workspace"><div class="workspace-head">${navigation}</div><div class="online-body">
+  return `<section class="workspace online-workspace">${navigation?`<div class="workspace-head">${navigation}</div>`:''}<div class="online-body">
     <div class="online-heading"><div><div class="eyebrow">Q2PRO-X · LIVE</div><h1>${t.title}</h1><p>${t.intro}</p></div><span class="online-state" id="online-state" role="status">${t.loading}</span></div>
     <div class="online-toolbar"><label>${t.auto}<select id="online-refresh">${[5,10,30,60,0].map(n=>`<option value="${n}">${n?n+' '+t.seconds:t.off}</option>`).join('')}</select></label><button id="online-reload" type="button">↻ ${t.refresh}</button><span class="online-updated" id="online-updated"></span></div>
     <p id="online-warning" class="online-warning" hidden></p>
