@@ -63,7 +63,7 @@ export async function runOnce(config,{force=false}={}){
       state[key]={file,size:info.size,mtimeMs:info.mtimeMs,version:PARSER_VERSION,sha256:manifest.demo.sha256,done:ack.accepted};
       summary.imported++;console.log(JSON.stringify({file:path.basename(file),recordedAt:manifest.demo.recordedAt,parserVersion:manifest.parserVersion,matches:manifest.matches.map(m=>({map:m.map,score:m.participants.map(p=>p.score),status:m.status,full:m.statsComplete,startConfirmed:m.startObserved})),duplicate:ack.duplicate}));
     }catch(e){
-      if(['MVD_INVALID','MVD_NOT_CLOSED','MVD_TOO_LARGE','MVD_DECODE_FAILED','MVD_DECODE_LIMIT','MVD_DECODE_TIMEOUT','MVD_UNSUPPORTED'].includes(e.code)){
+      if(['MVD_INVALID','MVD_NOT_CLOSED','MVD_TOO_LARGE','MVD_DECODE_FAILED','MVD_DECODE_LIMIT','MVD_DECODE_TIMEOUT','MVD_UNSUPPORTED','MVD_METADATA_LIMIT'].includes(e.code)){
         const pending=e.code==='MVD_NOT_CLOSED';
         state[key]={file,size:info.size,mtimeMs:info.mtimeMs,version:PARSER_VERSION,done:false,ignored:!pending,pending,reason:e.code,error:e.message};
         if(pending)summary.pending++;else {summary.ignored++;console.log(JSON.stringify({file:path.basename(file),ignored:true,reason:e.code,message:e.message}));}

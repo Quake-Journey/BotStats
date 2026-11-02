@@ -1,0 +1,49 @@
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clock=ms=>`${Math.floor(ms/60000)}:${String(Math.floor(ms/1000)%60).padStart(2,'0')}.${Math.floor(ms%1000/100)}`;
+const presets={regular:['Обычная игра','Regular'],hardcore:['Hardcore','Hardcore'],training:['Training','Training'],training_hardcore:['Training + Hardcore','Training + Hardcore'],max_aggression:['Максимальная агрессия','Maximum aggression'],max_defence:['Максимальная защита','Maximum defence'],max_chaos:['Максимальный хаос','Maximum chaos'],server:['Конфигурация сервера','Server configuration']};
+const word=(lang,ru,en)=>lang==='ru'?ru:en;
+export function presetLabel(id,lang){return id===null||id===undefined?word(lang,'Не записано','Not recorded'):presets[id]?.[lang==='ru'?0:1]??String(id);}
+function valueLabel(key,value,lang){
+  if(value===null||value===undefined)return word(lang,'Не записано','Not recorded');
+  if(key==='preset'||key==='id')return presetLabel(value,lang);
+  if(key==='modified')return value?word(lang,'Да','Yes'):word(lang,'Нет','No');
+  if(key==='aggression'||/_aggression$/.test(key))return Number(value)===-1?word(lang,'По профилю','From profile'):`${value}%`;
+  return String(value);
+}
+const fieldLabel=(key,lang)=>({id:word(lang,'Пресет','Preset'),modified:'Modified',generation:word(lang,'Поколение настроек','Settings generation'),pending:word(lang,'Ожидают применения','Pending settings'),opponent:word(lang,'Бот-соперник (roster)','Opponent (roster)'),factory_sha256:word(lang,'Отпечаток набора пресетов','Factory set fingerprint'),skill:word(lang,'Скилл','Skill'),style:word(lang,'Стиль','Style'),training:'Training',pa_target_ms:word(lang,'Целевой PA, мс','Target PA, ms')}[key]??key);
+const scopeLabel=(key,lang)=>({gameplay:word(lang,'Пресет','Preset'),effective:word(lang,'Действующие параметры','Effective parameters'),configured:word(lang,'База сервера','Server configuration'),bot:word(lang,'Бот-соперник','Opponent bot')}[key]??key);
+function stateCard(key,title,state,lang){
+  const initial=state?.initial??null,final=state?.final??null,different=initial!==final;
+  const endpoint=different?`${word(lang,'Начало','Start')}: ${esc(valueLabel(key,initial,lang))}`:state?.variable?(initial===null?word(lang,'Начало и конец не записаны','Start and end not recorded'):word(lang,'Начало и конец совпадают','Start and end match')):'';
+  return `<div class="gameplay-state" data-gameplay-state="${key}"><span class="sub">${title}</span><strong>${esc(valueLabel(key,final,lang))}</strong>${state?.variable||different?`<span class="gameplay-variable">${[state?.variable?word(lang,'Переменный','Variable'):'',different?word(lang,'в конце матча','at match end'):''].filter(Boolean).join(' · ')}</span>`:''}${endpoint?`<div class="gameplay-endpoints"><span>${endpoint}</span></div>`:''}</div>`;
+}
+function changeRows(changes,lang){
+  return `<dl class="gameplay-diff">${changes.map(c=>`<div><dt><small>${scopeLabel(c.scope,lang)}</small>${esc(fieldLabel(c.key,lang))}</dt><dd><span class="gameplay-before">${esc(valueLabel(c.key,c.before,lang))}</span><span aria-label="${word(lang,'стало','became')}"> → </span><strong>${esc(valueLabel(c.key,c.after,lang))}</strong></dd></div>`).join('')}</dl>`;
+}
+export function gameplayDetail(match,lang='ru'){
+  const g=match.gameplay,snapshots=match.recordedSettings?.snapshots||[],unparsed=match.recordedSettings?.unparsed||[];
+  const history=g?.history||[],partial=snapshots.some(s=>!s.complete)||unparsed.length>0;
+  return `<section class="panel gameplay-panel"><div class="gameplay-heading"><h2>${word(lang,'Пресет и параметры бота','Gameplay preset and bot settings')}</h2></div>
+  ${g?`<div class="gameplay-states">${stateCard('preset',word(lang,'Игровой пресет','Gameplay preset'),g.preset,lang)}${stateCard('modified',word(lang,'Изменён вручную (Modified)','Manually modified (Modified)'),g.modified,lang)}${stateCard('model',word(lang,'Модель поведения соперника','Opponent behaviour model'),g.model,lang)}${stateCard('aggression',word(lang,'Политика агрессии соперника','Opponent aggression policy'),g.aggression,lang)}</div>
+  <p class="sub">${word(lang,'Modified — серверная отметка изменения выбранного пресета. Изменения скилла и базы сервера отслеживаются отдельно. Агрессия «По профилю» не сообщает вычисленную агрессию бота.','Modified is the server’s flag for an edited preset. Skill and server-base changes are tracked separately. “From profile” does not reveal the bot’s calculated aggression.')}</p>
+  ${(g.pending?.final>0||g.pending?.variable)?`<p class="gameplay-pending">${word(lang,'Параметры, ожидающие применения','Settings awaiting application')}: ${esc(valueLabel('pending',g.pending?.final,lang))}. ${g.pending?.initial!==g.pending?.final?`${word(lang,'На старте','At start')}: ${esc(valueLabel('pending',g.pending?.initial,lang))}.`:''} ${word(lang,'Показаны фактически записанные значения; список ожидающих параметров в MVD не указан.','Values shown are those actually recorded; the MVD does not identify the pending fields.')}</p>`:''}`:`<p class="gameplay-empty">${word(lang,'Игровой пресет, модель поведения и агрессия не записаны. Режимы Hardcore и Training не определяют название пресета.','Gameplay preset, behaviour model and aggression were not recorded. Hardcore and Training do not identify the preset.')}</p>`}
+  ${history.length?`<details class="gameplay-history"><summary>${word(lang,'Изменения по ходу матча','Changes during the match')} · ${history.length}</summary><p class="sub">${word(lang,'Время наблюдения от начала записанной игры, без пауз. Начальный снимок и одинаковый конечный снимок не считаются изменениями. Канал команды в записи не указан.','Observation time from the recorded game’s start, excluding pauses. The opening snapshot and an identical final snapshot are not changes. The command channel is not recorded.')}</p><ol>${history.map(h=>`<li><details><summary><time>${clock(h.at)}</time><span>${[...new Set(h.changes.map(c=>scopeLabel(c.scope,lang)))].join(' · ')}</span><small>${h.changes.length} ${word(lang,'изм.','changes')}</small></summary>${changeRows(h.changes,lang)}<p class="sub">${word(lang,'Исходный кадр','Native frame')}: ${h.frame??'—'} · ${word(lang,'Время записи, мс','Recording time, ms')}: ${h.recordingMs}</p></details></li>`).join('')}</ol></details>`:g?`<p class="sub">${word(lang,'Изменений между наблюдаемыми снимками нет.','No changes between observed snapshots.')}</p>`:''}
+  ${partial?`<p class="gameplay-partial">${word(lang,'Часть метаданных неполна или её полнота не подтверждена. Достоверные компоненты сохранены; отсутствующие значения не заменены настройками по умолчанию.','Some metadata is incomplete or its completeness is unconfirmed. Valid components are retained; missing values are not replaced by defaults.')}</p>`:''}
+  ${snapshots.length?`<details class="gameplay-snapshots"><summary>${word(lang,'Записанные снимки и параметры','Recorded snapshots and parameters')} · ${snapshots.length}</summary><div>${snapshots.map((s,i)=>`<details class="gameplay-snapshot" data-gameplay-snapshot="${i}"><summary><time>${clock(s.matchMs??0)}</time> · ${word(lang,'Снимок','Snapshot')} ${s.snapshot} · ${esc({start:word(lang,'Начало записи','Recording start'),change:word(lang,'Обновление','Update'),end:word(lang,'Конец записи','Recording end')}[s.event]??s.event)} <small>${s.complete?word(lang,'Полный','Complete'):word(lang,'Полнота не подтверждена','Completeness unconfirmed')}</small></summary><div class="gameplay-snapshot-body"></div></details>`).join('')}</div></details>`:''}
+  ${unparsed.length?`<details class="gameplay-raw-errors"><summary>${word(lang,'Неразобранные записи','Unparsed records')} · ${unparsed.length}</summary><pre>${esc(JSON.stringify(unparsed,null,2))}</pre></details>`:''}</section>`;
+}
+const statusLabel=(s,lang)=>({complete:word(lang,'Полный набор','Complete inventory'),incomplete:word(lang,'Неполный набор','Incomplete inventory'),unknown_inventory:word(lang,'Неизвестная ревизия набора','Unknown inventory revision'),not_recorded:word(lang,'Не записано','Not recorded')}[s]??word(lang,'Не подтверждено','Unconfirmed'));
+function parameterList(values,status,title,lang){
+  const entries=Object.entries(values||{}).sort(([a],[b])=>a.localeCompare(b));
+  return `<details class="gameplay-parameters"><summary>${title} · ${entries.length} <small>${statusLabel(status,lang)}</small></summary><dl>${entries.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></details>`;
+}
+export function mountGameplayDetails(container,match,lang){
+  for(const el of container.querySelectorAll('[data-gameplay-snapshot]'))el.addEventListener('toggle',()=>{
+    if(!el.open||el.dataset.loaded)return;el.dataset.loaded='1';
+    const s=match.recordedSettings.snapshots[Number(el.dataset.gameplaySnapshot)];
+    el.querySelector('.gameplay-snapshot-body').innerHTML=`<p class="sub">${word(lang,'Исходный кадр','Native frame')}: ${s.frame??'—'} · ${word(lang,'Время записи, мс','Recording time, ms')}: ${s.timeMs}</p>
+    ${s.gameplay?`<p>${word(lang,'Пресет','Preset')}: ${esc(presetLabel(s.gameplay.id,lang))} · Modified: ${valueLabel('modified',s.gameplay.modified,lang)} · ${word(lang,'Ожидают применения','Pending')}: ${s.gameplay.pending}</p>`:''}
+    ${parameterList(s.params,s.completeness?.effective.status,word(lang,'Действующие значения','Effective values'),lang)}${parameterList(s.baseParams,s.completeness?.configured.status,word(lang,'Базовая конфигурация сервера','Configured server base'),lang)}
+    <details class="gameplay-technical"><summary>${word(lang,'Исходные записи и проверка полноты','Source records and completeness checks')}</summary><pre>${esc(JSON.stringify({gameplay:s.gameplay,settings:s.settings,bots:s.bots,opponent:s.opponent,completeness:s.completeness,errors:s.errors,records:s.records},null,2))}</pre></details>`;
+  });
+}

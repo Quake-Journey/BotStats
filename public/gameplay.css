@@ -1,0 +1,30 @@
+.gameplay-panel{overflow-wrap:anywhere}
+.gameplay-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.gameplay-heading h2{margin-bottom:12px}
+.gameplay-states{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:8px 0 16px}
+.gameplay-state{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);min-width:0}
+.gameplay-state>strong{font-size:19px;color:var(--accent);line-height:1.35}
+.gameplay-state>.sub{margin:0;min-height:2.8em}
+.gameplay-variable{font-size:13px;color:var(--muted)}
+.gameplay-endpoints{margin-top:auto;padding-top:8px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.gameplay-panel summary{cursor:pointer;padding:12px 0;line-height:1.5;font-weight:650}
+.gameplay-panel summary small{font-weight:400;color:var(--muted);margin-left:6px}
+.gameplay-panel summary time{font-variant-numeric:tabular-nums;color:var(--accent);margin-right:8px}
+.gameplay-history,.gameplay-snapshots,.gameplay-raw-errors{border-top:1px solid var(--border);margin-top:12px}
+.gameplay-history ol{list-style:none;padding:0;margin:0}
+.gameplay-history li{border-top:1px solid var(--border)}
+.gameplay-history li details{padding:0 12px}
+.gameplay-history li:nth-child(odd){background:var(--surface2)}
+.gameplay-diff,.gameplay-parameters dl{margin:6px 0 16px}
+.gameplay-diff>div,.gameplay-parameters dl>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.gameplay-diff dt,.gameplay-parameters dt{font-size:13px;color:var(--muted)}
+.gameplay-diff dt small{display:block;color:var(--accent);margin-bottom:3px}
+.gameplay-diff dd,.gameplay-parameters dd{margin:0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.gameplay-before{color:var(--muted)}
+.gameplay-parameters dl>div:nth-child(odd){background:var(--surface2)}
+.gameplay-snapshot{border-top:1px solid var(--border);padding:0 12px}
+.gameplay-snapshot-body{padding-bottom:12px;min-width:0}
+.gameplay-pending,.gameplay-partial{padding:12px 16px;background:var(--surface2);border-radius:9px;font-size:14px}
+.gameplay-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.6;max-width:100%;padding:12px;background:var(--surface2);border-radius:8px}
+@media(max-width:900px){.gameplay-states{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.gameplay-states{grid-template-columns:minmax(0,1fr)}.gameplay-state>.sub{min-height:0}.gameplay-state{padding:12px}.gameplay-endpoints{font-size:12px}.gameplay-diff>div,.gameplay-parameters dl>div{grid-template-columns:minmax(0,1fr);gap:4px;padding:10px 6px}.gameplay-snapshot{padding:0 4px}.gameplay-history li details{padding:0 6px}}

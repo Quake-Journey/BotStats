@@ -7,7 +7,7 @@ import path from 'node:path';
 import {normalizeMatchResult} from '../public/match-result.js';
 import {settingsRecords,assembleSettings,applyMatchSettings,participantBotRows} from './match-settings.js';
 
-export const PARSER_VERSION = '0.2.0';
+export const PARSER_VERSION = '0.3.0';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
@@ -114,7 +114,7 @@ export function settingChange(text, timeMs) {
 }
 
 export class Collector {
-  constructor() { this.parts=new Map(); this.result=null; }
+  constructor() { this.parts=new Map(); this.result=null; this.metadataBytes=0; }
   part(id=0) {
     if (!this.parts.has(id)) this.parts.set(id,{id,configs:new Map(),prints:[],metadata:[],seen:new Set(),frames:[],identities:[],pings:new Map(),names:new Map(),end:0,version:null,timer:null,status:null});
     return this.parts.get(id);
@@ -133,7 +133,10 @@ export class Collector {
         s.pings.set(`${e.time_ms}:${m[1]}`,{timeMs:e.time_ms,name:m[1],ping:+m[2]});
       }
     } else if(e.kind==='print') {
-      s.metadata.push(...settingsRecords(e));
+      const metadata=settingsRecords(e);
+      this.metadataBytes+=metadata.reduce((n,r)=>n+Buffer.byteLength(r.raw),0);
+      if(this.metadataBytes>2*1024*1024)throw demoError('MVD_METADATA_LIMIT','Structured settings exceed the supported 2 MiB recording limit');
+      s.metadata.push(...metadata);
       const text=plain(e.text),key=`${e.time_ms}:${e.level}:${text}`;
       if(!s.seen.has(key)) {s.seen.add(key);s.prints.push({timeMs:e.time_ms,level:e.level,text});}
     } else if(e.kind==='player_state') {
@@ -212,7 +215,8 @@ export function summarize(collector, meta) {
         participants=named.teamNames.map((name,i)=>({name,score:last.teamScores[i],isBot:botName(name||''),profile:botName(name||'')?baseName(name):null,skill:skillInName(name||''),style:null,stats:null}));
       }
       const recordedSettings=assembleSettings(s.metadata.filter(r=>r.timeMs>=start&&r.timeMs<end));
-      for(const p of participants)if(recordedSettings.snapshots.some(x=>participantBotRows(x,p,s,plain).length===1)){
+      const matchSegment={...s,frames:s.frames.filter(f=>f.timeMs>=start&&f.timeMs<end)};
+      for(const p of participants)if(recordedSettings.snapshots.some(x=>participantBotRows(x,p,matchSegment,plain).length===1)){
         p.isBot=true;p.profile||=baseName(p.name);
       }
       if(participants.length!==2 || participants.some(p=>!p.name) || participants.filter(p=>p.isBot).length!==1)continue;
@@ -325,7 +329,7 @@ export function summarize(collector, meta) {
       // End metadata follows the result table. It describes settings, not a
       // new result or extra playing time. Never extend the actual match with it.
       recordedSettings.snapshots=recordedSettings.snapshots.filter(x=>x.timeMs<=end||x.event==='end'&&x.timeMs<=end+2000);
-      matches.push(applyMatchSettings(match,recordedSettings,s,gameTime,plain));
+      matches.push(applyMatchSettings(match,recordedSettings,matchSegment,gameTime,plain));
     }
   }
   return {schemaVersion:1,parserVersion:PARSER_VERSION,demo:meta,matches};
@@ -359,5 +363,6 @@ export async function parseMvd(file, decoder, {serverUtcOffset='+03:00'}={}) {
   if(before.size!==after.size||before.mtimeMs!==after.mtimeMs)throw new Error('Recording changed during parsing');
   const output=summarize(c,meta);
   if(!output.matches.length)throw demoError('MVD_UNSUPPORTED','No supported human-versus-bot duel found');
+  if(Buffer.byteLength(JSON.stringify(output))>8*1024*1024)throw demoError('MVD_METADATA_LIMIT','Manifest exceeds the supported 8 MiB ingest limit');
   return output;
 }

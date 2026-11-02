@@ -39,7 +39,7 @@ try{
     assert.equal(loaded,false);assert.ok(errors.some(e=>e.includes('botDifficulty')),'Cached older module must reproduce the failure');
   }else{
     assert.equal(loaded,true);assert.deepEqual(errors,[]);assert.equal(await page.locator('.rating-guide h1').innerText(),'О рейтинге');
-    await page.goto(base+'/botstats/?view=defeats&lang=ru&theme=auto');await page.waitForSelector('#content[aria-busy=false]');assert.equal(await page.locator('#results tbody tr').count(),8);
+    await page.goto(base+'/botstats/?view=defeats&lang=ru&theme=auto');await page.waitForSelector('#content[aria-busy=false]');assert.equal(await page.locator('#results tbody tr').count(),Number(process.env.BOTSTATS_CACHE_DEFEATS_COUNT??8));
     await page.reload();await page.waitForSelector('#content[aria-busy=false]');assert.deepEqual(errors,[]);
   }
 }finally{await browser.close();await new Promise(resolve=>proxy.close(resolve));}
