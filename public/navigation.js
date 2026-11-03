@@ -2,6 +2,11 @@
 // Updating only history leaves already-rendered hrefs stale, including new tabs.
 const escapeAttribute=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// Profile identity, not the section the visitor came from, owns its active tab.
+export function profileSection(params){
+  return params.get('profile')&&!params.has('match')?(params.get('kind')==='bot'?'bots':'players'):null;
+}
+
 export function createNavigation({base,params,getPreferences}) {
   function url(extra={}, {hash='',home=false}={}) {
     const q=home?new URLSearchParams():new URLSearchParams(params);
@@ -11,6 +16,7 @@ export function createNavigation({base,params,getPreferences}) {
     }
     // A match-page number belongs to one identity, never to the next profile.
     if(q.get('profile')!==params.get('profile')||q.get('kind')!==params.get('kind'))q.delete('profilePage');
+    const section=profileSection(q);if(section)q.set('view',section);
     const about=q.get('view')==='about';
     if(about)q.delete('view');
     return base+(about?'/about':'/')+'?'+q+hash;

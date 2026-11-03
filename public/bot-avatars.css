@@ -1,0 +1,17 @@
+.bot-avatar{display:inline-block;flex:none;object-fit:cover;aspect-ratio:1;border:1px solid var(--border);background:#111b25;border-radius:10px;vertical-align:middle}
+.bot-avatar--inline{width:32px;height:32px;border-radius:7px;margin-inline-end:7px}
+.bot-avatar--roster{display:block;width:64px;height:64px}
+.bot-avatar--profile{width:144px;height:144px;border-radius:18px}
+.bot-profile-heading{align-items:center;justify-content:flex-start;gap:22px}
+#home-bots .home-participants{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.bot-profile-heading>div{min-width:0}.bot-profile-heading h1{overflow-wrap:anywhere}
+.bot-profile-heading>.bot-avatar{flex:none}
+.home-participant.bot .home-person-heading{grid-template-columns:64px minmax(0,1fr) auto;gap:10px}
+.home-portrait{position:relative;display:block;width:64px;justify-self:start}
+.home-portrait .home-place{position:absolute;bottom:-4px;left:-4px;min-width:20px;padding:2px 4px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--text);text-align:center;font-size:11px}
+.person-name>a:has(.bot-avatar){display:inline-flex;align-items:center;justify-content:center;max-width:100%;gap:7px}
+.person-name>a>.bot-avatar{margin:0}
+.bot-name-text{min-width:0;overflow-wrap:anywhere}
+.player>.bot-avatar{display:block;margin:0 auto 12px;width:80px;height:80px}
+@media(max-width:600px){.bot-profile-heading{gap:14px}.bot-avatar--profile{width:96px;height:96px}.bot-profile-heading h1{font-size:28px}.home-participant.bot .home-person-heading{gap:8px}.home-participant.bot .home-person-name{font-size:19px}.home-participant.bot .home-person-wins{padding-left:0}}
+@media(prefers-reduced-motion:reduce){.bot-avatar{transition:none}}

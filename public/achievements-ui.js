@@ -1,5 +1,6 @@
 import {modeBadges} from './modes-ui.js';
 import {renderTable} from './tables.js';
+import {botAvatar} from './bot-avatars.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const asset=file=>new URL('./'+file,import.meta.url).href;
 const when=(s,lang)=>s?new Intl.DateTimeFormat(lang,{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Moscow'}).format(new Date(s)):'—';
@@ -15,7 +16,7 @@ export function achievementBadges(catalog,name,{lang,link,large=false,kind='huma
   const items=(catalog?.items||[]).filter(a=>(a.audience||'human')===kind&&a.holders.some(p=>p.name===name));
   if(!items.length)return '';
   const allLabel=lang==='ru'?`Все достижения ${name}: ${items.length}`:`All achievements for ${name}: ${items.length}`;
-  const more=large?'':`<a class="achievement-more" ${link({view:'players',profile:name,kind,match:null,achievement:null,awardPlayer:null,awardPage:null,page:null},{hash:'#profile-achievements'})} title="${esc(allLabel)}" aria-label="${esc(allLabel)}">+${items.length}</a>`;
+  const more=large?'':`<a class="achievement-more" ${link({view:kind==='bot'?'bots':'players',profile:name,kind,match:null,achievement:null,awardPlayer:null,awardPage:null,page:null},{hash:'#profile-achievements'})} title="${esc(allLabel)}" aria-label="${esc(allLabel)}">+${items.length}</a>`;
   return `<span class="achievement-badges${large?' large':' compact'}${kind==='bot'?' machine-badges':''}" aria-label="${lang==='ru'?'Достижения':'Achievements'}">${items.map(a=>`<a class="achievement-mini" ${large?'':'hidden'} ${awardLink(link,a.id,name)} title="${esc(a.name[lang])}" aria-label="${esc(a.name[lang])}"><img src="${esc(asset(large?a.icon:a.icon.replace('.webp','-mini.webp')))}" width="${large?80:36}" height="${large?80:36}" alt="${large?'':esc(a.name[lang])}" loading="${large?'eager':'lazy'}">${large?`<span class="achievement-mini-label">${esc(a.name[lang])}</span>`:''}</a>`).join('')}${more}</span>`;
 }
 // Measure the participant's column, not the viewport: cards and tables share this
@@ -39,7 +40,7 @@ export function achievementProfile(catalog,name,options){
   return `<section class="panel profile-achievements" id="profile-achievements"><div class="achievement-section-title"><h2>${ru?'Достижения':'Achievements'}</h2><a ${awardLink(options.link,null)}>${ru?'Все достижения →':'All achievements →'}</a></div>${badges||`<p class="sub">${options.kind==='bot'?(ru?'У этого бота пока нет достижений.':'This bot has no achievements yet.'):(ru?'У этого игрока пока нет достижений.':'This player has no achievements yet.')}</p>`}<p class="sub">${ru?'Награды за всю историю игр. Нажми на значок, чтобы открыть условия и подтверждающие матчи.':'Awards across the entire match history. Select a badge to see its rules and qualifying matches.'}</p></section>`;
 }
 function holder(p,id,{lang,link}){
-  return `<span class="achievement-holder"><a ${link({view:'players',profile:p.name,kind:p.kind||'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${esc(p.name)}</a><a class="award-proof-link" ${awardLink(link,id,p.name)} aria-label="${esc((lang==='ru'?'Подтверждающие матчи: ':'Qualifying matches: ')+p.name)}" title="${lang==='ru'?'Подтверждающие матчи':'Qualifying matches'}">↗</a></span>`;
+  return `<span class="achievement-holder"><a ${link({view:p.kind==='bot'?'bots':'players',profile:p.name,kind:p.kind||'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${p.kind==='bot'?botAvatar(p.name):''}${esc(p.name)}</a><a class="award-proof-link" ${awardLink(link,id,p.name)} aria-label="${esc((lang==='ru'?'Подтверждающие матчи: ':'Qualifying matches: ')+p.name)}" title="${lang==='ru'?'Подтверждающие матчи':'Qualifying matches'}">↗</a></span>`;
 }
 export function achievementsPage(catalog,options){
   const {lang,link,params}=options,ru=lang==='ru',query=params.get('achievementSearch')||'';
