@@ -411,10 +411,12 @@ async function refreshOverview(epoch){
   $('#latest').innerHTML=latest?`<div class="mini-label latest-heading"><span>${t('latest')}</span><span class="latest-result">${resultBadge(latest)}</span><span class="latest-map">${esc(latest.map)}</span></div><div class="latest-match"><div class="hero-score">${person(latest.participants[0],latest)}<a class="score-link" ${link({match:latest.id})} aria-label="${t('details')}">${score(latest)}</a>${person(latest.participants[1],latest)}</div><div class="mini-label"><span>${esc(date(latest.startedAt))}</span>${modeBadges(latest,lang)}</div></div>`:`<p>${t('empty')}</p>`;
   mountAchievementBadges();syncJudgment();
 }
+let homeCleanup=()=>{};
 async function showHome(epoch){
   const module=await import('./home-ui.js');if(epoch!==renderEpoch)return;
   if(!document.getElementById('home-css')){const css=document.createElement('link');css.id='home-css';css.rel='stylesheet';css.href=new URL('./home.css',import.meta.url);document.head.append(css);}
-  $('#content').innerHTML=module.homePage(homeData,{lang,link,badges});syncJudgment();
+  $('#content').innerHTML=module.homePage(homeData,{lang,link,badges,catalog:awardCatalog});syncJudgment();
+  homeCleanup=module.mountHomeVersion($('#home-mod-version'),{base,lang});
 }
 let themeModule=null;
 function syncJudgment(){
@@ -457,7 +459,7 @@ async function refreshCharts(){
 }
 
 let renderEpoch=0,onlineCleanup=()=>{};
-window.addEventListener('pagehide',()=>onlineCleanup());
+window.addEventListener('pagehide',()=>{onlineCleanup();homeCleanup();});
 window.addEventListener('pageshow',event=>{if(event.persisted)render();});
 async function render(){
   const section=profileSection(params);if(section){view=section;if(params.get('view')!==section){params.set('view',section);writeLocation();}}
@@ -465,6 +467,7 @@ async function render(){
   chartsAbort?.abort();chartsRequest++;chartsCleanup();chartsCleanup=()=>{};
   dynamicsCleanup();
   onlineCleanup();onlineCleanup=()=>{};
+  homeCleanup();homeCleanup=()=>{};
   const epoch=++renderEpoch;requestId++;preferences();$('#content').setAttribute('aria-busy','true');
   try{
     mountSharedShell();await refreshOverview(epoch);if(epoch!==renderEpoch)return;

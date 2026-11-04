@@ -68,6 +68,22 @@ export function createMonitor(config, { fetchImpl = fetch, now = Date.now, cache
   };
 }
 
+// Release names come from current server status, never the last recorded match.
+// Older builds advertise only otx_version=1; their release is in the hostname.
+export function serverModVersion(snapshot) {
+  const info=snapshot?.server?.info||{};
+  const release=(value,allowSemver=true)=>{
+    const text=safeText(value);
+    const beta=/\b(?:beta\s*|b)(\d+(?:\.\d+)?)(?:\s*[-/]?\s*(?:preview|p)\s*(\d+(?:\.\d+)?))?/i.exec(text);
+    if(beta)return `Beta ${beta[1]}${beta[2]?' Preview '+beta[2]:''}`;
+    const version=allowSemver&&/\b\d+\.\d+(?:\.\d+)?(?:[-+][a-z0-9.-]+)?\b/i.exec(text);
+    return version?.[0]||null;
+  };
+  const version=release(info.otx_version)||release(info.mod_version)||release(info.hostname,false);
+  return {state:snapshot?.state||'unavailable',mod:safeText(info.gamename||info.game)||'OpenTDM-X',version,
+    updatedAt:snapshot?.server?.updatedAt||null};
+}
+
 // The two existing players create a socket at the origin root. Adapt only that
 // URL inside their iframe; engine code/assets and UDP transport stay Tournament's.
 export function playerBridge(base, address) {
@@ -76,6 +92,9 @@ export function playerBridge(base, address) {
 
 export async function attachOnline(app, base, options) {
   const config = await onlineConfig(options), status = createMonitor(config), currentModes=createModeMonitor(config);
+  app.get(base+'/api/online/version', async (req,res) => {
+    res.set('Cache-Control','no-store').json(serverModVersion(await status()));
+  });
   app.get(base+'/api/online', async (req,res) => {
     const [snapshot,modes]=await Promise.all([status(),currentModes()]);
     res.set('Cache-Control','no-store').json({...snapshot,modes,address:config.server,pollSeconds:config.pollSeconds,

@@ -1,21 +1,21 @@
 /* Only standalone tiles. Tables, match rows, their contents and ordinary buttons
    are intentionally excluded. No pointer listeners or animation loops. */
 @media (hover:hover) and (pointer:fine){
-  :is(.home-participant,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *){
+  :is(.home-participant,.home-award,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *){
     position:relative;z-index:0;transform:none;box-shadow:0 2px 5px #00000014;
     transition:transform .28s cubic-bezier(.2,.75,.25,1),box-shadow .28s ease,border-color .28s ease;
   }
-  :is(.home-participant,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover{
+  :is(.home-participant,.home-award,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover{
     z-index:1;transform:perspective(900px) translateY(-7px) rotateX(1deg) scale(1.012);
     box-shadow:0 20px 32px -10px #0009,0 7px 12px -4px #0005;
     border-color:var(--home-hover-border,var(--accent));
   }
   /* Retain the original lower edge as a hover target while the tile is raised. */
-  :is(.home-participant,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover::after{
+  :is(.home-participant,.home-award,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover::after{
     content:'';position:absolute;top:100%;left:0;right:0;height:9px;
   }
 }
 @media (prefers-reduced-motion:reduce){
-  :is(.home-participant,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *){transition:none}
-  :is(.home-participant,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover{transform:none}
+  :is(.home-participant,.home-award,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *){transition:none}
+  :is(.home-participant,.home-award,.kpi,.hero-card,.map-leader,.chart-picker>a,.ranking-choices>a,.trend-stat,.gameplay-state,.chart-item,.skill-interval,.achievement-badges.large>.achievement-mini):not(table *,[role="table"] *,[role="grid"] *,.data-table *,.match-row *, .trend-table *):hover{transform:none}
 }

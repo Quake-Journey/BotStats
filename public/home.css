@@ -1,6 +1,6 @@
-.home-page{padding:0 0 4px}.home-roster{margin:24px 0;scroll-margin-top:120px}.home-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px}.home-section-head h2{margin:0;font-size:23px}.home-section-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}.home-section-head>a{font-size:14px;color:var(--accent);white-space:nowrap}.home-participants{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px}.home-participant{min-width:0;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px}.home-person-heading{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px}.home-place{font-size:12px;color:var(--muted)}.home-person-name{font-size:19px;font-weight:750;color:var(--accent);overflow-wrap:anywhere;line-height:1.25}.home-person-name:hover{text-decoration:underline}.home-person-wins{display:grid;text-align:center;gap:0;padding-left:8px}.home-person-wins b{font-size:29px;line-height:1.1;font-variant-numeric:tabular-nums}.home-person-wins>span{font-size:11px;color:var(--muted)}.home-person-meta,.home-no-awards{font-size:12px;color:var(--muted)}.home-person-meta{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin:5px 0}.home-person-winrate{font-size:inherit;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}.home-no-awards{display:block;padding:8px 0}.home-participant .achievement-badges{justify-content:flex-start;margin:8px 0 0}
+.home-page{padding:0 0 4px}.home-roster{margin:24px 0;scroll-margin-top:120px}.home-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px}.home-section-head :is(h2,h3){margin:0;font-size:23px}.home-section-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}.home-section-head>a{font-size:14px;color:var(--accent);white-space:nowrap}.home-participants{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px}.home-participant{min-width:0;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px}.home-person-heading{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px}.home-place{font-size:12px;color:var(--muted)}.home-person-name{font-size:19px;font-weight:750;color:var(--accent);overflow-wrap:anywhere;line-height:1.25}.home-person-name:hover{text-decoration:underline}.home-person-wins{display:grid;text-align:center;gap:0;padding-left:8px}.home-person-wins b{font-size:29px;line-height:1.1;font-variant-numeric:tabular-nums}.home-person-wins>span{font-size:11px;color:var(--muted)}.home-person-meta,.home-no-awards{font-size:12px;color:var(--muted)}.home-person-meta{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin:5px 0}.home-person-winrate{font-size:inherit;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}.home-no-awards{display:block;padding:8px 0}.home-participant .achievement-badges{justify-content:flex-start;margin:8px 0 0}
 
-@media(max-width:600px){.home-page{padding-top:12px}.home-section-head{align-items:flex-start;flex-wrap:wrap;padding:12px}.home-section-head h2{font-size:21px}.home-participants{grid-template-columns:1fr}.home-person-name{font-size:20px}}
+@media(max-width:600px){.home-page{padding-top:12px}.home-section-head{align-items:flex-start;flex-wrap:wrap;padding:12px}.home-section-head :is(h2,h3){font-size:21px}.home-participants{grid-template-columns:1fr}.home-person-name{font-size:20px}}
 
 .home-participant.human .home-person-wins b,.home-participant.human .home-person-winrate{color:var(--human-win)}
 .home-participant.bot .home-person-wins b,.home-participant.bot .home-person-winrate{color:var(--bot-win)}
@@ -9,3 +9,36 @@ html[data-theme=dark] .home-page,html[data-theme=judgment] .home-page{--home-car
 .home-participant{background:var(--home-card,var(--surface));border-color:var(--home-border,var(--border))}
 .home-section-head{background:var(--surface);border-color:var(--border)}
 .home-participant .achievement-mini:not(:hover):not(:focus-visible){background:transparent}
+
+.home-intro{margin:0}
+.home-section-more{display:flex;align-items:baseline;justify-content:flex-end;gap:6px 16px;flex-wrap:wrap}
+.home-section-more>a{font-size:14px;color:var(--accent);white-space:nowrap}
+.home-shown{font-size:13px;color:var(--muted);white-space:nowrap}
+.home-awards-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;margin:16px 0 12px}
+.home-awards-heading h3{font-size:18px;margin:0}
+.home-page .home-participants,.home-page #home-bots .home-participants,.home-recent-awards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.home-award{min-width:0;padding:14px 16px;border:1px solid var(--home-border,var(--border));border-radius:12px;background:var(--home-card,var(--surface));display:flex;flex-direction:column;gap:10px}
+.home-award-heading{display:flex;align-items:center;gap:12px;min-width:0;color:var(--text)}
+.home-award-heading img{width:80px;height:80px;flex:none;object-fit:contain}
+.home-award-heading h4{font-size:18px;line-height:1.25;margin:0;overflow-wrap:anywhere}
+.home-award-heading:hover h4{text-decoration:underline}
+.home-award-holder{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
+.home-award-holder>span{font-size:12px;color:var(--muted)}
+.home-award-holder>a{font-size:18px;font-weight:700;overflow-wrap:anywhere;color:var(--accent)}
+.home-award.human .home-award-holder>a{color:var(--human-name)}
+.home-award time{font-size:12px;color:var(--muted)}
+.home-awards-empty{grid-column:1/-1;margin:0;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--muted)}
+@media(max-width:1199px){.home-page .home-participants,.home-page #home-bots .home-participants,.home-recent-awards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.home-page .home-participants,.home-page #home-bots .home-participants,.home-recent-awards{grid-template-columns:1fr}.home-section-more{justify-content:flex-start}.home-awards-heading{align-items:flex-start}}
+
+.home-ai{margin:24px 0;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb,var(--surface) 94%,transparent)}
+.home-ai-heading{display:flex;align-items:center;gap:16px;padding:18px 20px;border-bottom:1px solid var(--border);border-radius:16px 16px 0 0;background:linear-gradient(110deg,color-mix(in srgb,var(--bot-win) 7%,var(--surface)),var(--surface) 60%)}
+.home-ai-icon{display:block;width:68px;height:68px;flex:none;object-fit:contain;filter:drop-shadow(0 3px 8px #bd354830)}
+.home-ai-heading>div{min-width:0}
+#home-ai-title{margin:0;font-size:30px;font-weight:850;line-height:1.15;letter-spacing:-.035em;color:var(--text)}
+#home-ai-title>span{color:var(--bot-win);font-weight:750}
+#home-mod-version{margin:7px 0 0;font-size:13px;line-height:1.4;color:var(--muted)}
+.home-ai-body{padding:16px}
+.home-ai-body>.home-roster:last-child{margin-bottom:0}
+.home-intro .home-awards-heading{margin-top:0}
+@media(max-width:600px){.home-ai-heading{gap:10px;padding:14px 12px}.home-ai-icon{width:48px;height:48px}#home-ai-title{font-size:24px}.home-ai-body{padding:10px}.home-ai-body .home-section-head{padding:12px}.home-ai{margin-top:16px}}

@@ -3,11 +3,21 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {normalizeServer,createMonitor,onlineConfig,attachOnline} from '../src/online.js';
+import {normalizeServer,createMonitor,onlineConfig,attachOnline,serverModVersion} from '../src/online.js';
 import {scoreChanges,playerVariant} from '../public/online-ui.js';
 import {testPath} from './support/paths.js';
 const addr='91.227.18.67:27950';
 const snapshot=(score=1,map='q2duel5')=>({servers:[{server:addr,serverInfo:{mapname:map,time_remaining:'2:30',hostname:'Test',rcon_password:'secret',api_token:'secret'},serverPlayers:[{name:'pp',score,ping:9},{name:'David-X[200]',score:'7',ping:0},{name:'viewer',score:'Spectator',ping:11}],lastUpdated:'2026-10-28T12:00:00Z'}]});
+
+test('home version distinguishes the installed release from protocol counters and stale data',()=>{
+  const data={state:'online',server:{info:{gamename:'OpenTDM-X',otx_version:'1',revision:'1',hostname:'AI powered bots duel (B13 preview 4) / Hardcore'},updatedAt:'2026-11-04T12:00:00Z'}};
+  assert.equal(serverModVersion(data).version,'Beta 13 Preview 4');
+  data.server.info.otx_version='OpenTDM-X Beta 14 Preview 2';
+  assert.equal(serverModVersion(data).version,'Beta 14 Preview 2');
+  data.state='unavailable';assert.equal(serverModVersion(data).state,'unavailable');
+  data.server.info={otx_version:'1',revision:'13',hostname:'Server 91.227.18.67'};
+  assert.equal(serverModVersion(data).version,null);assert.equal(serverModVersion(null).version,null);
+});
 test('online: only the selected server and public status fields are exposed',()=>{
   const result=normalizeServer(snapshot(),addr,Date.parse('2026-10-28T12:00:10Z'));
   assert.equal(result.stale,false);assert.equal(result.players[1].score,7);assert.equal(result.players[1].ping,0);assert.equal(result.players[2].spectator,true);assert.equal(result.players[2].score,null);
@@ -40,6 +50,7 @@ test('online: same-origin player shares Tournament assets/socket without making 
   remote.on('upgrade',(req,socket)=>{connects++;remoteSockets.add(socket);socket.on('close',()=>remoteSockets.delete(socket));socket.on('error',()=>{});assert.equal(req.url,'/?target='+encodeURIComponent(addr));const key=createHash('sha1').update(req.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${key}\r\nSec-WebSocket-Protocol: quake2\r\n\r\n`);socket.write(Buffer.from([0x81,2,111,107]));});
   const upstreamOrigin=`http://127.0.0.1:${remote.address().port}`,app=express(),bind=await attachOnline(app,'/botstats',{monitorOrigin:upstreamOrigin,tournamentOrigin:upstreamOrigin}),server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));const close=bind(server),base=`http://127.0.0.1:${server.address().port}`;
   try{
+    const versionInfo=await(await fetch(base+'/botstats/api/online/version')).json();assert.equal(versionInfo.version,null);assert.equal(versionInfo.players,undefined);assert.equal(versionInfo.modes,undefined);assert.ok(!JSON.stringify(versionInfo).includes('secret'));
     const status=await(await fetch(base+'/botstats/api/online')).json();assert.equal(status.address,addr);assert.equal(status.players.desktop,'/botstats/q2tv/?s='+encodeURIComponent(Buffer.from(addr).toString('base64')));assert.ok(!JSON.stringify(status).includes(upstreamOrigin));
     const html=await fetch(base+'/botstats/q2tv/');assert.equal(html.headers.get('cross-origin-embedder-policy'),'require-corp');assert.match(await html.text(),/<head><script src="\/botstats\/api\/online\/player-bridge.js"><\/script>/);
     const wasm=await fetch(base+'/botstats/q2tv/test.wasm');assert.equal(wasm.headers.get('content-type'),'application/wasm');assert.deepEqual([...new Uint8Array(await wasm.arrayBuffer())],[0,97,115,109]);

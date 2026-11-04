@@ -2,7 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildHome,homeProjection} from '../src/home.js';
 import {game} from './support/achievement-fixtures.js';
-import {winLabel} from '../public/home-ui.js';
+import {winLabel,recentAwards} from '../public/home-ui.js';
+
+test('home latest achievements count individual holders and sort awards by earned date',()=>{
+  const holder=(name,day)=>({name,earnedAt:day?`2026-11-${String(day).padStart(2,'0')}T12:00:00Z`:null});
+  const catalog={items:[{id:'human-award',holders:[holder('old',1),holder('new',4),holder('unknown',null)]},{id:'bot-award',audience:'bot',holders:[holder('bot',3),holder('another',2),holder('newbot',5)]}]};
+  const before=JSON.stringify(catalog),result=recentAwards(catalog);
+  assert.equal(result.total,6);assert.deepEqual(result.items.map(x=>x.holder.name),['newbot','new','bot','another']);
+  assert.equal(JSON.stringify(catalog),before);assert.deepEqual(recentAwards({items:[]}),{total:0,items:[]});
+});
 
 test('home victory captions agree with the number in Russian and English',()=>{
   for(const [n,label] of [[0,'побед'],[1,'победа'],[2,'победы'],[5,'побед'],[11,'побед'],[12,'побед'],[14,'побед'],[21,'победа'],[22,'победы'],[111,'побед'],[114,'побед'],[124,'победы']])assert.equal(winLabel(n,'ru'),label);
