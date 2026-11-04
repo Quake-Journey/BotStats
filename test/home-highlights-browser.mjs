@@ -13,11 +13,12 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
   const awardsPromise=page.waitForResponse(r=>new URL(r.url()).pathname==='/botstats/api/achievements');
   await page.goto(base+`?view=home&lang=${lang}&theme=${theme}`);
   await page.locator('#content[aria-busy=false]').waitFor();
-  await page.waitForFunction(()=>document.querySelector('#home-mod-version')?.textContent.includes('Beta'));
+  if(width>800)await page.waitForFunction(()=>document.querySelector('#home-mod-version')?.textContent.includes('Beta'));
+  else assert.equal(await page.locator('.home-ai-heading').count(),0);
   const data=await(await dataPromise).json(),catalog=await(await awardsPromise).json();
   for(const [kind,bot] of [['bots',true],['humans',false]]){
    const participants=data.players.filter(p=>p.isBot===bot).sort((a,b)=>b.wins-a.wins||b.matches-a.matches||a.name.localeCompare(b.name,lang));
-   const shown=participants.slice(0,12),section=page.locator('#home-'+kind);
+   const shown=participants.slice(0,width<=800?3:12),section=page.locator('#home-'+kind);
    assert.deepEqual(await section.locator('.home-person-name').allTextContents(),shown.map(p=>p.name));
    const counter=await section.locator('.home-shown').textContent();
    assert.ok(counter.includes(String(shown.length))&&counter.includes(String(participants.length)));
@@ -29,13 +30,13 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
   }
   const grants=catalog.items.flatMap(a=>a.holders.map(h=>({id:a.id,...h}))),dated=grants.filter(h=>Number.isFinite(Date.parse(h.earnedAt)));
   dated.sort((a,b)=>Date.parse(b.earnedAt)-Date.parse(a.earnedAt)||a.id.localeCompare(b.id)||a.name.localeCompare(b.name));
-  assert.deepEqual(await page.locator('.home-award-holder>a').allTextContents(),dated.slice(0,4).map(g=>g.name));
+  assert.deepEqual(await page.locator('.home-award-holder>a').allTextContents(),dated.slice(0,width<=800?1:4).map(g=>g.name));
   assert.ok((await page.locator('.home-awards-heading .home-shown').textContent()).includes(String(grants.length)));
-  assert.equal(await page.locator('.home-award').count(),4);
+  assert.equal(await page.locator('.home-award').count(),width<=800?1:4);
   assert.ok(await page.evaluate(()=>document.querySelector('.home-intro').getBoundingClientRect().top<document.querySelector('#home-bots').getBoundingClientRect().top));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   assert.equal(requests.some(u=>/\/api\/(summary|matches|facets|charts)(\/|\?|$)/.test(u)),false);
-  assert.equal(requests.filter(u=>u.endsWith('/api/online/version')).length,1);
+  assert.equal(requests.filter(u=>u.endsWith('/api/online/version')).length,width<=800?0:1);
   assert.equal(requests.some(u=>u.endsWith('/api/online')),false,'Home does not request Q2TV/modes');
   await page.locator('.home-intro').scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>[...document.querySelectorAll('.home-award img')].every(img=>img.complete&&img.naturalWidth));

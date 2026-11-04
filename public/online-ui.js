@@ -28,24 +28,28 @@ export function liveModesHTML(modes,lang){
   }).join('');
   const stamp=Date.parse(modes?.checkedAt);
   const checked=Number.isFinite(stamp)?new Date(stamp).toLocaleTimeString(lang==='ru'?'ru-RU':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):null;
-  return `<div class="online-modes">${values}<span class="online-mode-time">${modes?.state==='current'&&checked?labels.checked+': '+checked:labels.unavailable}</span></div>`;
+  return `<div class="online-modes" data-state="${esc(modes?.state||'unknown')}">${values}<span class="online-mode-time">${modes?.state==='current'&&checked?labels.checked+': '+checked:labels.unavailable}</span></div>`;
 }
 
 export function onlinePage(lang,navigation) {
-  const t=strings[lang]||strings.en;
-  return `<section class="workspace online-workspace">${navigation?`<div class="workspace-head">${navigation}</div>`:''}<div class="online-body">
-    <div class="online-heading"><div><div class="eyebrow">Q2PRO-X · LIVE</div><h1>${t.title}</h1><p>${t.intro}</p></div><span class="online-state" id="online-state" role="status">${t.loading}</span></div>
-    <div class="online-toolbar"><label>${t.auto}<select id="online-refresh">${[5,10,30,60,0].map(n=>`<option value="${n}">${n?n+' '+t.seconds:t.off}</option>`).join('')}</select></label><button id="online-reload" type="button">↻ ${t.refresh}</button><span class="online-updated" id="online-updated"></span></div>
+  const t=strings[lang]||strings.en,compact=globalThis.matchMedia?.('(max-width:800px)').matches;
+  const variant=`<label>${t.player}<select id="online-variant"><option value="auto">${t.automatic}</option><option value="desktop">${t.desktop}</option><option value="mobile">${t.mobile}</option></select></label>`;
+  const watch=`<div class="online-watch-controls"><button id="online-watch" class="online-primary" type="button" aria-expanded="false" aria-controls="online-player" disabled>${t.watch}</button>${compact?'':variant}</div>`;
+  const toolbar=`<div class="online-toolbar"><label>${t.auto}<select id="online-refresh">${[5,10,30,60,0].map(n=>`<option value="${n}">${n?n+' '+t.seconds:t.off}</option>`).join('')}</select></label><button id="online-reload" type="button">↻ ${t.refresh}</button><span class="online-updated" id="online-updated"></span>${compact?variant:''}</div>`;
+  return `<section class="workspace online-workspace${compact?' online-compact':''}">${navigation?`<div class="workspace-head">${navigation}</div>`:''}<div class="online-body">
+    <div class="online-heading"><div>${compact?'':'<div class="eyebrow">Q2PRO-X · LIVE</div>'}<h1>${t.title}</h1>${compact?'':`<p>${t.intro}</p>`}</div><span class="online-state" id="online-state" role="status">${t.loading}</span></div>
+    ${compact?watch:toolbar}
+    ${compact?`<details class="online-options"><summary>${lang==='ru'?'Обновление и плеер':'Refresh and player options'}</summary>${toolbar}</details>`:''}
     <p id="online-warning" class="online-warning" hidden></p>
     <section id="online-server" class="online-server" aria-label="${t.players}"><div class="loading">${t.loading}</div></section>
-    <div class="online-watch-controls"><button id="online-watch" class="online-primary" type="button" aria-expanded="false" aria-controls="online-player" disabled>${t.watch}</button><label>${t.player}<select id="online-variant"><option value="auto">${t.automatic}</option><option value="desktop">${t.desktop}</option><option value="mobile">${t.mobile}</option></select></label></div>
+    ${compact?'':watch}
     <section id="online-player" class="online-player" hidden aria-label="Q2TV"><div class="online-player-toolbar"><h2>${t.playerTitle}</h2><div><button id="online-restart" type="button">${t.retry}</button><button id="online-fullscreen" type="button">⛶ ${t.fullscreen}</button><button id="online-close" type="button">✕ ${t.close}</button></div></div><div class="online-screen" id="online-screen"><div class="online-player-progress" id="online-progress" role="status">${t.playerLoading}</div><div id="online-frame"></div></div><p>${t.playerHelp}</p></section>
   </div></section>`;
 }
 
 export function mountOnline(root,{base,lang,params,onState}) {
-  const t=strings[lang]||strings.en,$=s=>root.querySelector(s);
-  let stopped=false,timer,request,latest,previous,changes=new Map(),iframe,loadTimer,observer,settingsOpen=true;
+  const t=strings[lang]||strings.en,$=s=>root.querySelector(s),compact=!!root.querySelector('.online-compact');
+  let stopped=false,timer,request,latest,previous,changes=new Map(),iframe,loadTimer,observer,settingsOpen=params.has('onlineSettings')?params.get('onlineSettings')==='1':!compact;
   let period=[0,5,10,30,60].includes(Number(params.get('onlineRefresh')))&&params.has('onlineRefresh')?Number(params.get('onlineRefresh')):10;
   let variant=['auto','desktop','mobile'].includes(params.get('onlinePlayer'))?params.get('onlinePlayer'):'auto';
   let sort=['name','score','ping'].includes(params.get('sort_online'))?params.get('sort_online'):'score';
@@ -71,12 +75,13 @@ export function mountOnline(root,{base,lang,params,onState}) {
     const skip=new Set(['hostname','sv_hostname','mapname','map','maxclients','max_clients','gamename','serverIp','serverPort','time_remaining','sv_hardcore','sv_training','sv_bots_training_mode']);
     const entries=Object.entries(inf).filter(([k])=>!skip.has(k)).sort(([a],[b])=>a.localeCompare(b));
     const modes=liveModesHTML(latest?.modes,lang);
-    $('#online-server').innerHTML=`<div class="online-server-head"><h2>${esc(inf.hostname||inf.sv_hostname||s.address)}</h2><div class="online-address"><span>${esc(s.address)}</span><button id="online-copy" type="button">${t.copy}</button><a href="quake2://${esc(s.address)}">${t.join} ↗</a></div></div>
-      <div class="online-metrics"><div><span>${t.map}</span><strong>${esc(inf.mapname||inf.map||'—')}</strong></div><div><span>${t.time}</span><strong>${inf.time_remaining==='WARMUP'?t.warmup:esc(inf.time_remaining||'—')}</strong></div><div><span>${t.players}</span><strong>${participants}<small> / ${esc(inf.maxclients||inf.max_clients||'—')}</small></strong>${viewers?`<small>${t.spectator}: ${viewers}</small>`:''}</div><div><span>${t.mod}</span><strong class="online-mod">${esc(inf.gamename||'—')}</strong></div></div>${modes}
-      <div class="online-columns"><section class="online-roster"><h3>${t.players}</h3>${rows?`<table class="online-table"><thead><tr>${['name','score','ping'].map(k=>`<th aria-sort="${sort===k?(direction==='asc'?'ascending':'descending'):'none'}"><button data-online-sort="${k}" type="button">${t[k]} ${sort===k?(direction==='asc'?'↑':'↓'):'↕'}</button></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`:`<p class="online-empty">${t.empty}</p>`}</section>
+    $('#online-server').innerHTML=`${compact?'':`<div class="online-server-head"><h2>${esc(inf.hostname||inf.sv_hostname||s.address)}</h2><div class="online-address"><span>${esc(s.address)}</span><button id="online-copy" type="button">${t.copy}</button><a href="quake2://${esc(s.address)}">${t.join} ↗</a></div></div>`}
+      <div class="online-metrics"><div><span>${t.map}</span><strong>${esc(inf.mapname||inf.map||'—')}</strong></div><div><span>${t.time}</span><strong>${inf.time_remaining==='WARMUP'?t.warmup:esc(inf.time_remaining||'—')}</strong></div>${compact?'':`<div><span>${t.players}</span><strong>${participants}<small> / ${esc(inf.maxclients||inf.max_clients||'—')}</small></strong>${viewers?`<small>${t.spectator}: ${viewers}</small>`:''}</div><div><span>${t.mod}</span><strong class="online-mod">${esc(inf.gamename||'—')}</strong></div>`}</div>${modes}
+      <div class="online-columns"><section class="online-roster"><h3>${t.players}${compact?` <small>· ${participants}${viewers?` + ${viewers} ${lang==='ru'?'зрит.':'watching'}`:''}</small>`:''}</h3>${rows?`<table class="online-table"><thead><tr>${['name','score','ping'].map(k=>`<th aria-sort="${sort===k?(direction==='asc'?'ascending':'descending'):'none'}"><button data-online-sort="${k}" type="button">${t[k]} ${sort===k?(direction==='asc'?'↑':'↓'):'↕'}</button></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`:`<p class="online-empty">${t.empty}</p>`}</section>
       <details id="online-settings" class="online-settings" ${settingsOpen?'open':''}><summary>${t.settings}<span>${entries.length}</span></summary><dl>${entries.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></details></div>`;
+    $('#online-settings').ontoggle=e=>{if(e.target.isConnected){settingsOpen=e.target.open;update('onlineSettings',settingsOpen?'1':'0');}};
     for(const button of root.querySelectorAll('[data-online-sort]'))button.onclick=()=>{const key=button.dataset.onlineSort;direction=key===sort?(direction==='asc'?'desc':'asc'):(key==='name'?'asc':'desc');sort=key;update('sort_online',sort);update('dir_online',direction);draw();};
-    $('#online-copy').onclick=async()=>{try{await navigator.clipboard.writeText('connect '+s.address);if($('#online-copy'))$('#online-copy').textContent=t.copied;}catch{}};
+    if($('#online-copy'))$('#online-copy').onclick=async()=>{try{await navigator.clipboard.writeText('connect '+s.address);if($('#online-copy'))$('#online-copy').textContent=t.copied;}catch{}};
   }
   function schedule(){clearTimeout(timer);if(!stopped&&period&&!document.hidden)timer=setTimeout(refresh,period*1000);}
   async function refresh(){

@@ -22,7 +22,8 @@ export function dynamicsPage(data,{lang,link,params}){
 }
 
 function svg(data,lang,width){
-  const height=340,left=48,right=20,top=18,bottom=48,w=width-left-right,h=height-top-bottom,points=data.points;
+  const compact=globalThis.matchMedia?.('(max-width:800px)').matches;
+  const height=compact?240:340,left=compact?34:48,right=compact?12:20,top=18,bottom=compact?32:48,w=width-left-right,h=height-top-bottom,points=data.points;
   const max=points.reduce((n,p)=>Math.max(n,p.botWins,p.humanWins),1),raw=max/4,pow=10**Math.floor(Math.log10(raw));
   const step=Math.max(1,[1,2,5,10].find(n=>n*pow>=raw)*pow),ceiling=Math.ceil(max/step)*step;
   const x=i=>points.length===1?left+w/2:left+w*i/(points.length-1),y=n=>top+h-h*n/ceiling;

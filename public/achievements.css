@@ -48,3 +48,12 @@
 @media(min-width:641px) and (max-width:1399px){.achievement-list .data-table tbody tr{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.achievement-heading{padding:24px 16px}.achievement-heading p{font-size:16px}.achievement-toolbar{padding:16px;gap:8px}.achievement-toolbar label{width:100%}.achievement-list{padding:0 10px 12px}.achievement-list .data-table tbody tr{grid-template-columns:1fr}.achievement-list .data-table td{width:100%;min-width:0}.achievement-list .data-table td:first-child:before{display:none}.achievement-caption .achievement-art{flex-basis:auto}.achievement-caption h2{font-size:23px}.achievement-caption p{font-size:16px}.achievement-holders{gap:6px}.achievement-detail{flex-direction:column;gap:16px;padding:22px 18px;text-align:center}.achievement-detail-art{width:190px;height:190px;flex-basis:190px}.achievement-detail p{font-size:17px}.achievement-rules{margin:18px 12px}.achievement-badges{--award-slot:40px}.achievement-mini img{width:32px;height:32px}.achievement-section-title{align-items:flex-start}.achievement-badges.large{grid-template-columns:repeat(2,minmax(0,1fr))}.large .achievement-mini img{width:72px;height:72px}}
 @media(prefers-reduced-motion:reduce){.achievement-mini{transition:none}.achievement-mini:hover,.achievement-mini:focus-visible{transform:none}}
+.achievement-last-date{display:block}
+.achievement-latest-holder{display:block;margin-top:8px}
+.achievement-latest-holder .achievement-holder,.achievement-latest-holder .achievement-holder a{font-size:16px}
+.achievement-latest-holder .bot-avatar{width:28px;height:28px}
+@media(min-width:1400px){
+  .achievement-list .data-table th:first-child,.achievement-list .data-table td:first-child{width:40%}
+  .achievement-list .data-table th:nth-child(2){width:24%}
+  .achievement-list .data-table th:nth-child(3),.achievement-list .data-table th:nth-child(4){width:18%}
+}

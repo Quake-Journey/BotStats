@@ -21,7 +21,7 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
     await page.goto(base+`?view=home&theme=${theme}&lang=${lang}`);await ready();
     await page.locator('#home-bots').scrollIntoViewIfNeeded();
     await page.waitForFunction(()=>[...document.querySelectorAll('#home-bots img.bot-avatar')].filter(e=>e.getBoundingClientRect().top<innerHeight).every(e=>e.complete&&e.naturalWidth));
-    assert.equal(await page.locator('#home-bots .bot-avatar').count(),12);assert.equal(await page.locator('#home-humans .bot-avatar').count(),0);
+    assert.equal(await page.locator('#home-bots .bot-avatar').count(),width<=800?3:12);assert.equal(await page.locator('#home-humans .bot-avatar').count(),0);
     assert.equal(requests.some(u=>u.includes('/avatars/bots/')&&u.endsWith('-384.webp')),false,'home only loads thumbnail assets');
     const overlapping=await page.locator('#home-bots .home-person-heading').evaluateAll(rows=>rows.some(row=>{
       const a=row.querySelector('.home-portrait').getBoundingClientRect(),n=row.querySelector('.home-person-name').getBoundingClientRect(),w=row.querySelector('.home-person-wins').getBoundingClientRect();

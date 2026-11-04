@@ -19,8 +19,8 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
   assert.equal(await page.locator('.data-table').count(),0);
   assert.equal(requests.filter(u=>u.includes('/api/home?')).length,1);
   assert.equal(requests.some(u=>/\/api\/(summary|matches|charts)(\/|\?|$)/.test(u)),false,'Home does not request ranking calculations or chart aggregates');
-  assert.equal(await page.locator('#home-bots .home-participant').count(),15);
-  assert.equal(await page.locator('#home-humans .home-participant').count(),25);
+  assert.equal(await page.locator('#home-bots .home-participant').count(),width<=800?3:12);
+  assert.equal(await page.locator('#home-humans .home-participant').count(),width<=800?3:12);
   const colors=await page.evaluate(()=>Object.fromEntries(Object.entries({name:'.home-participant.human .home-person-name',wins:'.home-participant.human .home-person-wins b',bot:'.home-participant.bot .home-person-name'}).map(([k,s])=>[k,getComputedStyle(document.querySelector(s)).color])));
   assert.notEqual(colors.name,colors.wins);assert.notEqual(colors.name,colors.bot);
   const measures=()=>page.evaluate(()=>{
@@ -45,14 +45,7 @@ for(const [engineName,engine] of Object.entries({chromium,firefox,webkit})){
    assert.ok(now.scrollX<=now.viewport,view+' no overflow');
    assert.equal(await page.locator('#judgment-caption').count(),0,view+' no duplicate theme caption');
   }
-  if(width<800){
-   await page.locator('[data-overview=overviewStats]>summary').click();
-   await page.waitForFunction(()=>document.querySelector('[data-overview=overviewStats]').open);
-   const opened=await measures();await page.locator('[data-view=matches]').click();await page.locator('#content[aria-busy=false]').waitFor();
-   assert.equal(await page.locator('[data-overview=overviewStats]').evaluate(e=>e.open),true,'Mobile disclosure preserved');
-   assert.equal(await page.locator('#shared-shell .overview').isVisible(),false,'Expanded overview is also hidden on inner pages');
-   assert.ok((await measures()).scrollX<=width);
-  }
+  assert.equal(await page.locator('#shared-shell details').count(),0,'Overview and latest match have no disclosures');
   assert.deepEqual(errors,[]);
   if(engineName!=='webkit')await page.screenshot({path:`${out}/${engineName}-${width}.png`,fullPage:false,caret:'initial'});
   checks.push({engineName,width,passed:true,coordinates:start,colors});await page.close();

@@ -15,7 +15,7 @@ import {winCount,winConditionsColumn,completedWithDuration} from './count-contex
 import {achievementBadges,achievementProfile,achievementsPage,achievementPage,mountAchievementBadges} from './achievements-ui.js';
 let awardCatalog={items:[]};
 import {completeScoreHistory,scoreAxis} from './score-history.js';
-import {renderTable,sortState,sortButton} from './tables.js';
+import {renderTable,sortState,sortButton,compactSort} from './tables.js';
 import {ratingPolicy,matchPoints,victoryPoints,victoryDuration,botDifficulty,botLossPenalty,botWinAward,rankParticipants,rankMaps} from './rating.js';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const currentPath=location.pathname.replace(/\/$/,''),base=currentPath.endsWith('/about')?currentPath.slice(0,-6):currentPath,params=new URLSearchParams(location.search);
@@ -88,11 +88,11 @@ function unscoredWarning(rows){
   const missing=rows.filter(p=>!p.isBot&&p.unscoredWins>0);if(!missing.length)return '';
   return `<div class="warning rating-data-note">${lang==='ru'?'Для части побед не удалось начислить очки: в записи не хватает данных о скилле бота или полной длительности матча. Победы сохранены в статистике.':'Points could not be awarded for some wins because the recordings lack reliable bot skill or full match duration data. These wins remain in the statistics.'}<ul>${missing.map(p=>`<li><a ${link({profile:p.name,kind:'human',match:null})}>${esc(p.name)}</a> — ${lang==='ru'?'побед с неполными данными':'wins with missing data'}: ${p.unscoredWins}</li>`).join('')}</ul></div>`;
 }
-function forfeitLoss(p,m){
+function forfeitLoss(p,m,compact=false){
   if(p.isBot||m?.status!=='forfeit')return '';
   const index=m.participants.indexOf(p);
   const lost=Number.isInteger(m.winnerIndex)?m.winnerIndex!==index:m.forfeitBy===p.name;
-  return lost?`<span class="badge forfeit participant-result" data-outcome="forfeit-loss">${t('technicalLoss')}</span>`:'';
+  return lost?`<span class="badge forfeit participant-result" data-outcome="forfeit-loss"${compact?` title="${t('technicalLoss')}" aria-label="${t('technicalLoss')}"`: ''}>${compact?'forfeit':t('technicalLoss')}</span>`:'';
 }
 Object.assign(dict.ru,{
   forfeitRanking:'Антирейтинг forfeit', forfeitRate:'Доля forfeit', finishedResults:'Матчи с результатом',
@@ -107,7 +107,7 @@ Object.assign(dict.en,{
   forfeitsNote:'Forfeit share = forfeit losses / all games with a known result × 100%. A higher share ranks first; ties use the number of forfeits. Counts are shown alongside: 1 out of 1 and 66 out of 119 are different samples. Recordings without a result and games with a changed bot are excluded; the result filter does not apply here.'
 });
 const rankingMode=()=>['victory','average','forfeits','activity','maps'].includes(params.get('ranking'))?params.get('ranking'):'victory';
-function rankingChoices(){return `<nav class="ranking-choices" aria-label="${t('rating')}">${['victory','average','forfeits','activity','maps'].map(mode=>`<a ${link({view:'rating',ranking:mode,page:null})} aria-current="${rankingMode()===mode?'page':'false'}">${t(mode==='forfeits'?'forfeitRanking':mode)}</a>`).join('')}</nav>`;}
+function rankingChoices(){if(overviewMobile.matches)return `<label class="ranking-picker">${t('rating')}<select data-ranking-choice>${['victory','average','forfeits','activity','maps'].map(mode=>`<option value="${mode}" ${rankingMode()===mode?'selected':''}>${t(mode==='forfeits'?'forfeitRanking':mode)}</option>`).join('')}</select></label>`;return `<nav class="ranking-choices" aria-label="${t('rating')}">${['victory','average','forfeits','activity','maps'].map(mode=>`<a ${link({view:'rating',ranking:mode,page:null})} aria-current="${rankingMode()===mode?'page':'false'}">${t(mode==='forfeits'?'forfeitRanking':mode)}</a>`).join('')}</nav>`;}
 
 function ratingExplanation(bot,victory=false){const attrs=link({view:'about',match:null,profile:null,kind:null,page:null},{hash:bot?'#bot-wins':victory?'#duration':'#performance'});if(victory)return `<a class="button-link" ${attrs}>${t('aboutRating')} →</a>`;return (lang==='ru'?(bot?'Базовые очки ботов до поправки за режимы. На максимальном скилле: победа +0,1…+10; forfeit +0,05…+5. Награда растёт от 2 до 10 минут и умножается на долю скилла от собственного максимума. Поражение −0,01…−1.':'Индекс силы игры от 0 до 100, не процент побед и не сумма очков. Учитывает результаты против ботов и малое число игр. Forfeit — в отдельном антирейтинге.'):(bot?'Base bot points before mode adjustments. At maximum skill: win +0.1…+10; forfeit +0.05…+5. Rewards grow from 2 to 10 minutes and scale with skill relative to the bot’s own maximum. Loss −0.01…−1.':'Playing-strength index from 0 to 100, not a win percentage or accumulated points. It reflects results against bots with a small-sample adjustment. Forfeits have a separate anti-ranking.'))+` <a class="button-link" ${attrs}>${bot?(lang==='ru'?'Правила начисления ботам →':'Bot scoring rules →'):lang==='ru'?'Как рассчитывается оценка →':'How the estimate is calculated →'}</a>`;}
 
@@ -146,15 +146,9 @@ function field(key,label,content){return `<div class="field"><label for="f-${key
 function select(key,label,values){return field(key,label,`<select id="f-${key}" name="${key}">${options(values)}</select>`);}
 const overviewMobile=matchMedia('(max-width:800px)');
 function isHome(){return view==='home'&&!params.has('match')&&!params.has('profile')&&!params.has('achievement');}
-function overviewHome(){return isHome();}
-function hero(){return `<section class="overview overview-secondary" aria-label="${t('overview')}"><details class="overview-fold" data-overview="overviewStats" open><summary>${t('overview')}</summary><div class="kpis" id="kpis"></div></details><details class="overview-fold" data-overview="overviewLatest" open><summary>${t('latest')}</summary><div class="hero-card" id="latest"><div class="loading">${t('loading')}</div></div></details></section>`;}
-function mountOverview(){
-  for(const panel of document.querySelectorAll('[data-overview]')){
-    const key=panel.dataset.overview;panel.open=!overviewMobile.matches||params.get(key)==='1';
-    panel.ontoggle=()=>{if(!panel.isConnected||!overviewMobile.matches)return;if(panel.open===(params.get(key)==='1'))return;params.set(key,panel.open?'1':'0');writeLocation();};
-  }
-}
-overviewMobile.addEventListener('change',mountOverview);
+function hero(){return `<section class="overview" aria-label="${t('overview')}"><div class="overview-fold"><div class="kpis" id="kpis"></div></div><div class="overview-fold"><div class="hero-card" id="latest"><div class="loading">${t('loading')}</div></div></div></section>`;}
+overviewMobile.addEventListener('change',()=>render());
+document.addEventListener('toggle',event=>{const info=event.target;if(!info.matches?.('.rating-explanation')||!info.isConnected)return;const value=info.open?'1':'0';if(params.get('ratingInfo')!==value){params.set('ratingInfo',value);writeLocation();}},true);
 function navigation(){return `<nav class="tabs" aria-label="${t('matches')}">${['home','rating','matches','online','players','bots','defeats','victims','botdefeats','dynamics','charts','achievements'].map(v=>`<a class="tab" data-view="${v}" ${link({view:v,match:null,profile:null,kind:null,achievement:null,awardPlayer:null,awardPage:null,page:null},v==='home'?{home:true}:{})} aria-current="${view===v?'page':'false'}" aria-selected="${view===v}">${t(v)}</a>`).join('')}</nav>`;}
 function badges(p){return achievementBadges(awardCatalog,p.isBot?(p.profile||p.name.replace(/(?:\[\d+\]|>\d+)$/,'')):p.name,{lang,link,kind:p.isBot?'bot':'human'});}
 function listShell(){
@@ -162,16 +156,33 @@ function listShell(){
   const optional=trend?'':field('overtime','overtimeFilter',`<select id="f-overtime" name="overtime"><option value="">${t('all')}</option><option value="1">${t('overtimeOnly')}</option></select>`)+select('skill','skill',[...(facets.skills||[]),'variable']);
   const status=trend||graphs||(view==='rating'&&rankingMode()==='forfeits')?'':field('status','status',`<select id="f-status" name="status"><option value="">${t('all')}</option>${['completed','forfeit','interrupted'].map(s=>`<option value="${s}">${t(s)}</option>`).join('')}</select>`);
   const advancedKeys=trend?['modVersion','from','to']:['skill','modVersion','status','from','to','overtime'];
-  return `<section class="workspace ${graphs?'charts-workspace':''}"><form id="filters" class="filter-panel"><details class="primary-filters" ${params.get('filters')==='1'?'open':''}><summary>${t('mainFilters')}</summary><div class="filters">${periodSelect()}${field('q',view==='players'?(lang==='ru'?'Ник игрока':'Player name'):'search',`<input id="f-q" name="q" type="search" placeholder="${view==='players'?(lang==='ru'?'Ник, например pp или q':'Name, for example pp or q'):t('searchHint')}" maxlength="80" autocomplete="off">`)}${select('map','map',facets.maps||[])}${select('bot','bot',facets.bots||[])}${select('style','style',facets.styles||[])}</div></details><details class="advanced" ${(params.has('advanced')?params.get('advanced')==='1':advancedKeys.some(k=>params.has(k)))?'open':''}><summary>${trend?(lang==='ru'?'Версия и даты':'Version and dates'):t('moreFilters')}</summary><div class="filters">${optional}${select('modVersion','version',facets.versions||[])}${status}${field('from','from','<input id="f-from" name="from" type="date">')}${field('to','to','<input id="f-to" name="to" type="date">')}</div></details><div class="filter-bottom"><button type="submit">${t('apply')}</button><button type="button" id="reset">${t('reset')}</button><button type="button" id="copy">${t('copy')}</button><span class="sub">${t('periodNote')}</span><span class="result-count" id="count"></span></div></form><div id="results"><div class="loading">${t('loading')}</div></div></section>`;
+  const mobileFilters=overviewMobile.matches,activeFilters=qfields.filter(k=>params.get(k)&&!(k==='period'&&params.get(k)==='all')).length;
+  const filterStart=mobileFilters?`<details class="mobile-filters" ${params.get('filterPanel')==='1'?'open':''}><summary>${lang==='ru'?'Фильтры':'Filters'}${activeFilters?` <b>· ${activeFilters}</b>`:''}</summary>`:'',filterEnd=mobileFilters?'</details>':'';
+  return `<section class="workspace ${graphs?'charts-workspace':''}">${filterStart}<form id="filters" class="filter-panel"><details class="primary-filters" ${params.get('filters')==='1'?'open':''}><summary>${t('mainFilters')}</summary><div class="filters">${periodSelect()}${field('q',view==='players'?(lang==='ru'?'Ник игрока':'Player name'):'search',`<input id="f-q" name="q" type="search" placeholder="${view==='players'?(lang==='ru'?'Ник, например pp или q':'Name, for example pp or q'):t('searchHint')}" maxlength="80" autocomplete="off">`)}${select('map','map',facets.maps||[])}${select('bot','bot',facets.bots||[])}${select('style','style',facets.styles||[])}</div></details><details class="advanced" ${(params.has('advanced')?params.get('advanced')==='1':advancedKeys.some(k=>params.has(k)))?'open':''}><summary>${trend?(lang==='ru'?'Версия и даты':'Version and dates'):t('moreFilters')}</summary><div class="filters">${optional}${select('modVersion','version',facets.versions||[])}${status}${field('from','from','<input id="f-from" name="from" type="date">')}${field('to','to','<input id="f-to" name="to" type="date">')}</div></details><div class="filter-bottom"><button type="submit">${t('apply')}</button><button type="button" id="reset">${t('reset')}</button><button type="button" id="copy">${t('copy')}</button><span class="sub">${t('periodNote')}</span><span class="result-count" id="count"></span></div></form>${filterEnd}<div id="results"><div class="loading">${t('loading')}</div></div></section>`;
 }
-function matchRow(m){const attrs=link({view:'matches',match:m.id,profile:null,achievement:null,awardPlayer:null,awardPage:null});return `<div class="match-row"><div><a ${attrs}><div class="map-name ${esc(m.map)}">${esc(m.map)}</div><div class="date">${esc(date(m.startedAt))}</div></a></div><div class="duel">${person(m.participants[0],m)}<a class="score-link" ${attrs} aria-label="${t('details')}">${score(m)}</a>${person(m.participants[1],m)}</div><div class="status">${badge(m)}</div><div class="row-meta">${time(m.durationSeconds??m.recordedSeconds)}<br>${m.modVersion?'Beta '+esc(m.modVersion):'—'}</div><div class="chevron"><a ${attrs} aria-label="${t('details')}">↗</a></div></div>`;}
+function compactMatch(m,attrs){
+  const ru=lang==='ru',seconds=m.durationSeconds??m.recordedSeconds;
+  const identity=p=>`<div class="compact-identity" data-player-kind="${p.isBot?'bot':'human'}"><a ${link({view:p.isBot?'bots':'players',profile:p.isBot?(p.profile||p.name):p.name,kind:p.isBot?'bot':'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${p.isBot?botAvatar(p.profile||p.name):''}<span>${esc(p.name)}</span></a>${forfeitLoss(p,m,true)}${badges(p)}</div>`;
+  const settings=m.participants.filter(p=>p.isBot).map(p=>`<div><dt>${esc(p.name)}</dt><dd>${botSettings(p)}</dd></div>`).join('');
+  return `<article class="match-row compact-row compact-match" data-match="${esc(m.id)}"><div class="compact-identities">${m.participants.map(identity).join('')}</div><div class="compact-metrics"><div><span>${ru?'Счёт':'Score'}</span><strong><a class="score-link" ${attrs} aria-label="${t('details')}">${score(m)} ↗</a></strong></div><div><span>${t('map')}</span><strong><a class="map-name" ${attrs}>${esc(m.map)}</a></strong></div><div><span>${ru?'Время':'Time'}</span><strong>${seconds==null?'—':time(seconds)}</strong></div></div><div class="compact-match-foot"><span class="compact-match-date">${esc(date(m.startedAt))}</span><span class="compact-match-result">${resultBadge(m)}</span>${modeBadges(m,lang)}</div><details class="compact-row-details"><summary>${ru?'Подробнее':'Details'}</summary><dl>${settings}<div><dt>${t('version')}</dt><dd>${m.modVersion?'Beta '+esc(m.modVersion):'—'}</dd></div></dl><a class="button-link" ${attrs}>${t('details')} ↗</a></details></article>`;
+}
+function matchRow(m){const attrs=link({view:'matches',match:m.id,profile:null,achievement:null,awardPlayer:null,awardPage:null});if(overviewMobile.matches)return compactMatch(m,attrs);return `<div class="match-row"><div><a ${attrs}><div class="map-name ${esc(m.map)}">${esc(m.map)}</div><div class="date">${esc(date(m.startedAt))}</div></a></div><div class="duel">${person(m.participants[0],m)}<a class="score-link" ${attrs} aria-label="${t('details')}">${score(m)}</a>${person(m.participants[1],m)}</div><div class="status">${badge(m)}</div><div class="row-meta"><span>${time(m.durationSeconds??m.recordedSeconds)}</span><br><span>${m.modVersion?'Beta '+esc(m.modVersion):'—'}</span></div><div class="chevron"><a ${attrs} aria-label="${t('details')}">↗</a></div></div>`;}
 function person(p,m){return `<span class="person" data-player-kind="${p.isBot?'bot':'human'}"><span class="person-name"><a ${link({view:p.isBot?'bots':'players',profile:p.isBot?p.profile:p.name,kind:p.isBot?'bot':'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${p.isBot?botAvatar(p.profile||p.name):''}<span class="bot-name-text">${esc(p.name)}</span></a></span>${badges(p)}${forfeitLoss(p,m)}<small>${p.isBot?botSettings(p):t('human')}</small></span>`;}
 function topKiller(s){
   const bot=(s.players||[]).filter(p=>p.isBot&&p.wins>0).sort((a,b)=>b.wins-a.wins||a.name.localeCompare(b.name,'en'))[0];
   const label=lang==='ru'?'Главный бот-убийца:':'Top bot killer:';
   return `<div class="kpi-killer"><span class="kpi-killer-heading"><span class="kpi-killer-label">${label}</span> ${bot?`<a class="kpi-killer-name" ${link({view:'bots',profile:bot.name,kind:'bot',match:null,achievement:null,awardPlayer:null,awardPage:null,page:null})} title="${lang==='ru'?'Побед над людьми':'Wins over humans'}: ${num(bot.wins)}">${esc(bot.name)}</a>`:'<span class="kpi-killer-name">—</span>'}</span>${bot?badges({isBot:true,profile:bot.name,name:bot.name}):''}</div>`;
 }
-function kpis(s){return [['allMatches',s.matches,`${s.fullStats} ${t('fullStats')}`],['gameTime',`${num(s.minutes)} <small>${t('minutes')}</small>`,t('rounds')],['humanWins',s.humanWins,lang==='ru'?'Включая победы в овертайме':'Including overtime wins'],['botWins',s.botWins,lang==='ru'?'Включая технические победы':'Including forfeit wins']].map(([label,val,note])=>`<div class="kpi" data-kpi="${label}"><span class="label">${t(label)}</span><span class="value">${typeof val==='number'?num(val):val}</span><span class="note">${esc(note)}</span>${overviewHistory(s,label,lang,link)}${label==='gameTime'?winBalance(s,lang):label==='allMatches'?topKiller(s):''}</div>`).join('');}
+function compactKpis(s){
+  const metric=(key,value)=>`<div class="kpi-metric" data-kpi="${key}"><span class="label">${key==='gameTime'?(lang==='ru'?'Время, мин':'Time, min'):t(key)}</span><span class="value">${num(value)}</span></div>`;
+  return `<div class="kpi compact-kpi">${metric('allMatches',s.matches)}${metric('gameTime',s.minutes)}</div><div class="kpi compact-kpi">${metric('humanWins',s.humanWins)}${metric('botWins',s.botWins)}</div>`;
+}
+function compactLatest(m){
+  const name=p=>`<a class="compact-latest-person ${p.isBot?'bot':'human'}" ${link({view:p.isBot?'bots':'players',profile:p.isBot?(p.profile||p.name):p.name,kind:p.isBot?'bot':'human',match:null,achievement:null,awardPlayer:null,awardPage:null})}>${esc(p.name)}</a>`;
+  const seconds=m.durationSeconds??m.recordedSeconds;
+  return `<div class="compact-latest-head"><b>${t('latest')}</b><span>${esc(m.map)}</span></div><div class="compact-latest-score">${name(m.participants[0])}<div><a class="score-link" ${link({view:'matches',match:m.id,profile:null,kind:null,achievement:null,awardPlayer:null,awardPage:null})} aria-label="${t('details')}">${score(m)} <span class="compact-latest-arrow">↗</span></a></div>${name(m.participants[1])}</div><div class="compact-latest-meta"><span>${esc(date(m.startedAt))}</span><span class="compact-latest-result">${resultBadge(m)}</span><span>${t('duration')}: ${seconds==null?'—':time(seconds)}</span></div>${modeBadges(m,lang)}`;
+}
+function kpis(s){if(overviewMobile.matches)return compactKpis(s);return [['allMatches',s.matches,`${s.fullStats} ${t('fullStats')}`],['gameTime',`${num(s.minutes)} <small>${t('minutes')}</small>`,t('rounds')],['humanWins',s.humanWins,lang==='ru'?'Включая победы в овертайме':'Including overtime wins'],['botWins',s.botWins,lang==='ru'?'Включая технические победы':'Including forfeit wins']].map(([label,val,note])=>`<div class="kpi" data-kpi="${label}"><span class="label">${t(label)}</span><span class="value">${typeof val==='number'?num(val):val}</span><span class="note">${esc(note)}</span>${overviewHistory(s,label,lang,link)}${label==='gameTime'?winBalance(s,lang):label==='allMatches'?topKiller(s):''}</div>`).join('');}
 function rankTable(rows,map=false,id=map?'maps':'rating'){
   if(rows.some(r=>!r.isBot)||(!rows.length&&view!=='bots'))return averageTable(rows,map,id);
   const data=rows.map((r,i)=>({...r,rank:i+1}));
@@ -216,7 +227,7 @@ function popularityTable(s){
 }
 function ratingLeaders(s){
   const bot=view==='bots',mode=bot?'average':rankingMode();
-  const heading=`${bot?'':rankingChoices()}<div class="ranking-intro"><h2>${t(bot?'botRating':mode==='forfeits'?'forfeitRanking':mode)}</h2><p>${bot?ratingExplanation(true):t(mode+'Note')}</p></div>`;
+  const heading=`${bot?'':rankingChoices()}<div class="ranking-intro"><h2>${t(bot?'botRating':mode==='forfeits'?'forfeitRanking':mode)}</h2>${overviewMobile.matches?`<details class="rating-explanation" ${params.get('ratingInfo')==='1'?'open':''}><summary>${lang==='ru'?'Как считается рейтинг':'How the ranking works'}</summary><p>${bot?ratingExplanation(true):t(mode+'Note')}</p></details>`:`<p>${bot?ratingExplanation(true):t(mode+'Note')}</p>`}</div>`;
   if(mode==='maps')return heading+popularityTable(s);
   const eligible=rows=>rankParticipants(rows.filter(p=>p.isBot===bot&&(mode!=='activity'||p.completedMatches>0)&&(mode!=='victory'||p.normalWins>0)&&(bot||mode!=='average'||p.performance?.value!=null)&&(mode!=='forfeits'||p.forfeits>0)),mode);
   const rows=eligible(s.players),id=bot?'rating_bots':'rating_'+mode;
@@ -229,8 +240,8 @@ function ratingLeaders(s){
   }).join('')}</div>`;
 }
 
-function profileControls(){return `<div class="profile-period filters">${periodSelect()}${field('from','from','<input id="f-from" type="date">')}${field('to','to','<input id="f-to" type="date">')}</div>`;}
-function mountProfilePeriod(){for(const k of ['period','from','to'])$('#f-'+k).value=params.get(k)||(k==='period'?'all':'');for(const k of ['period','from','to'])$('#f-'+k).onchange=e=>{if(k==='period'){params.set('period',e.target.value);if(e.target.value!=='custom'){params.delete('from');params.delete('to');}}else{params.set('period','custom');if(e.target.value)params.set(k,e.target.value);else params.delete(k);}params.delete('profilePage');writeLocation();render();};}
+function profileControls(){const fields=`<div class="profile-period filters">${periodSelect()}${field('from','from','<input id="f-from" type="date">')}${field('to','to','<input id="f-to" type="date">')}</div>`;return overviewMobile.matches?`<details class="profile-filters" ${params.get('profileFilters')==='1'?'open':''}><summary>${lang==='ru'?'Фильтры':'Filters'}</summary>${fields}</details>`:fields;}
+function mountProfilePeriod(){const fold=$('.profile-filters');if(fold)fold.ontoggle=()=>{if(fold.isConnected){params.set('profileFilters',fold.open?'1':'0');writeLocation();}};for(const k of ['period','from','to'])$('#f-'+k).value=params.get(k)||(k==='period'?'all':'');for(const k of ['period','from','to'])$('#f-'+k).onchange=e=>{if(k==='period'){params.set('period',e.target.value);if(e.target.value!=='custom'){params.delete('from');params.delete('to');}}else{params.set('period','custom');if(e.target.value)params.set(k,e.target.value);else params.delete(k);}params.delete('profilePage');writeLocation();render();};}
 
 async function profile(epoch){const name=params.get('profile'),kind=params.get('kind')==='bot'?'bot':'human',q=profileMatchQuery(params);const [s,r]=await Promise.all([api('summary?'+q),api('matches?'+q)]),p=s.players.find(p=>p.name===name&&p.isBot===(kind==='bot'));if(epoch!==renderEpoch)return;if(!p){$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a><div class="detail-top${kind==='bot'?' bot-profile-heading':''}">${kind==='bot'?botAvatar(name,{size:'profile',eager:true}):''}<h1>${esc(name)}</h1></div>${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}<div class="empty">${t('empty')}</div>`;mountProfilePeriod();return;}const maps=s.byMap.map(m=>({map:m.map,...m.players.find(p=>p.name===name&&p.isBot===(kind==='bot'))}));$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a><div class="detail-top${kind==='bot'?' bot-profile-heading':''}">${kind==='bot'?botAvatar(name,{size:'profile',eager:true}):''}<div><div class="eyebrow">${kind==='bot'?t('botType'):t('profile')}</div><h1>${esc(name)}</h1><span class="subtle">${params.has('map')?esc(params.get('map')):t('allMaps')} · ${t({today:'periodToday',three:'periodThree',week:'periodWeek',month:'periodMonth',year:'periodYear',custom:'periodCustom'}[params.get('period')]||'periodAll')}</span></div></div>${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}<div class="kpis">${(kind==='human'?[['victoryTotal',num(p.victoryPoints,2)],['averageTotal',num(p.performance?.value,2)+(p.performance?.provisional?` <small>${t('provisional')}</small>`:'')],['completedMatches',p.completedMatches],['forfeitRate',num(p.forfeitRate,2)+'%']]:[['points',pointNum(p.points)],['matchCount',p.matches],['winRate',num(p.winRate,1)+'%'],['pointsPerMatch',pointNum(p.pointsPerMatch)]]).map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${value}</span></div>`).join('')}</div><section class="panel"><h2>${t('profileSummary')}</h2>${rankTable([p],false,'profile')}${unscoredWarning([p])}<p class="sub">${ratingExplanation(kind==='bot')}${kind==='bot'?'<br>'+t('ratingNote'):''}</p><div class="kpis">${[['averageKills',p.averageKills],['averageDeaths',p.averageDeaths],['averageKD',p.averageKillDeathDifference],['averageDamage',p.averageDamage],['overtimeForfeits',p.overtimeForfeits]].map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${num(value,1)}</span></div>`).join('')}</div><p class="sub">${t('meanNote')}</p></section><section class="panel"><h2>${t('mapBreakdown')}</h2>${kind==='human'?profileVictories(maps):''}${rankTable(maps,true)}<h3>${t('averages')}</h3>${mapAverages(maps)}</section><section class="panel" id="profile-matches"><h2>${t('matches')} · ${num(r.total)}</h2>${matchHeaders()}${matchPagination(r,{lang,profile:true})}${r.items.map(matchRow).join('')}${matchPagination(r,{lang,profile:true})}</section>`;mountProfilePeriod();document.querySelectorAll('[data-profile-page]').forEach(button=>button.onclick=async()=>{params.set('profilePage',button.dataset.profilePage);writeLocation('push');await render();document.getElementById('profile-matches')?.scrollIntoView({block:'start'});});}
 function profileVictories(rows){
@@ -274,11 +285,22 @@ function defeatResults(r){
     {key:'duration',label:t('duration'),value:m=>m.durationSeconds??m.recordedSeconds,render:m=>time(m.durationSeconds??m.recordedSeconds)},
     {key:'status',label:t('status'),text:true,value:m=>m.status,render:m=>badge(m)}
   ];
-  return `<div class="defeat-intro"><h2>${t(botLoss?'botDefeatTitle':'defeatTitle')}</h2><p>${t(botLoss?'botDefeatNote':'defeatNote')}</p></div>`+(r.items.length?renderTable(view,columns,r.items,{params,lang,defaultKey:'margin',defaultDir:'desc',presorted:true})+`${matchPagination(r,{lang})}`:`<div class="empty">${t('empty')}</div>`);
+  return `<div class="defeat-intro"><h2>${t(overviewMobile.matches?(botLoss?'botdefeats':'defeats'):(botLoss?'botDefeatTitle':'defeatTitle'))}</h2>${overviewMobile.matches?`<details class="section-info"><summary>${lang==='ru'?'Как считаются показатели':'How these metrics are calculated'}</summary><p>${t(botLoss?'botDefeatNote':'defeatNote')}</p></details>`:`<p>${t(botLoss?'botDefeatNote':'defeatNote')}</p>`}</div>`+(r.items.length?renderTable(view,columns,r.items,{params,lang,defaultKey:'margin',defaultDir:'desc',presorted:true})+`${matchPagination(r,{lang})}`:`<div class="empty">${t('empty')}</div>`);
 }
 
-function matchHeaders(){const columns=[['map','map',true],['date','date',false],['match','match',true],['score','scoreLabel',false],['status','status',true],['duration','duration',false],['version','version',true]].map(([key,label,text])=>({key,label:t(label),text})),state=sortState('matches',columns,params,'date','desc');return `<div class="match-sort" aria-label="${t('sortHint')}">${columns.map(c=>sortButton('matches',c,state,lang)).join('')}</div>`;}
-document.addEventListener('click',async e=>{const button=e.target.closest('[data-sort-table]');if(!button)return;const id=button.dataset.sortTable;params.set('sort_'+id,button.dataset.sortKey);params.set('dir_'+id,button.dataset.sortDir);if(id==='award_evidence')params.delete('awardPage');if(['matches','defeats','botdefeats'].includes(id)){params.delete('page');params.delete('profilePage');}writeLocation();const y=scrollY;if(['matches','defeats','botdefeats','victims'].includes(id)&&!params.has('profile')&&!params.has('match'))await refresh();else await render();window.scrollTo(0,y);document.querySelector(`[data-sort-table="${id}"][data-sort-key="${button.dataset.sortKey}"]`)?.focus({preventScroll:true});});
+function matchHeaders(){const columns=[['map','map',true],['date','date',false],['match','match',true],['score','scoreLabel',false],['status','status',true],['duration','duration',false],['version','version',true]].map(([key,label,text])=>({key,label:t(label),text})),state=sortState('matches',columns,params,'date','desc');if(overviewMobile.matches)return compactSort('matches',columns,state,lang);return `<div class="match-sort" aria-label="${t('sortHint')}">${columns.map(c=>sortButton('matches',c,state,lang)).join('')}</div>`;}
+async function changeSort(id,key,dir){
+  params.set('sort_'+id,key);params.set('dir_'+id,dir);
+  if(id==='award_evidence')params.delete('awardPage');
+  if(['matches','defeats','botdefeats'].includes(id)){params.delete('page');params.delete('profilePage');}
+  writeLocation();const y=scrollY;
+  if(['matches','defeats','botdefeats','victims'].includes(id)&&!params.has('profile')&&!params.has('match'))await refresh();else await render();
+  window.scrollTo(0,y);
+  const focus=overviewMobile.matches?`[data-sort-select="${id}"]`:`[data-sort-table="${id}"][data-sort-key="${key}"]`;
+  document.querySelector(focus)?.focus({preventScroll:true});
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-sort-table]');if(b)changeSort(b.dataset.sortTable,b.dataset.sortKey,b.dataset.sortDir);});
+document.addEventListener('change',e=>{if(e.target.matches('[data-ranking-choice]')){params.set('ranking',e.target.value);params.delete('page');writeLocation('push');render();return;}const s=e.target.closest('[data-sort-select]');if(s)changeSort(s.dataset.sortSelect,s.value,s.selectedOptions[0].dataset.direction);});
 $('#copy-server').onclick=async()=>{const command='connect 91.227.18.67:27950';try{await navigator.clipboard.writeText(command);$('#copy-server').textContent=t('copied');}catch(e){window.prompt(t('copyConnect'),command);}};
 $('#toggle-links').onclick=()=>{const open=$('#toggle-links').getAttribute('aria-expanded')!=='true';$('#toggle-links').setAttribute('aria-expanded',String(open));$('.header').classList.toggle('links-open',open);};
 
@@ -303,9 +325,9 @@ async function refresh(){const overviewEpoch=renderEpoch;await refreshOverview(o
   document.querySelectorAll('button[data-page]').forEach(b=>b.onclick=()=>{params.set('page',b.dataset.page);writeLocation('push');refresh();});
   mountAchievementBadges();
 }catch(e){if($('#results'))$('#results').innerHTML=`<div class="error">${t('error')} <button id="retry">${t('retry')}</button></div>`;if($('#retry'))$('#retry').onclick=refresh;}}
-function mountFilters(){for(const [selector,key] of [['.primary-filters','filters'],['.advanced','advanced']]){const section=$(selector);section.ontoggle=()=>{if(!section.isConnected)return;params.set(key,section.open?'1':'0');writeLocation();};}for(const k of qfields){const input=$('#f-'+k);if(input)input.value=params.get(k)||(k==='period'?'all':'');}let debounce;
-  const submit=()=>{for(const [k,v]of new FormData($('#filters'))){if(v)params.set(k,v);else params.delete(k);}params.delete('page');if(view==='charts')resetChartSelection();writeLocation();refresh();};
-  $('#filters').onsubmit=e=>{e.preventDefault();clearTimeout(debounce);submit();};$('#filters').onchange=e=>{if(e.target.id==='f-period'&&e.target.value!=='custom'){$('#f-from').value='';$('#f-to').value='';}if(e.target.id==='f-from'||e.target.id==='f-to')$('#f-period').value='custom';submit();};$('#f-q').oninput=()=>{clearTimeout(debounce);debounce=setTimeout(submit,300);};
+function mountFilters(){for(const [selector,key] of [['.mobile-filters','filterPanel'],['.primary-filters','filters'],['.advanced','advanced']]){const section=$(selector);if(!section)continue;section.ontoggle=()=>{if(!section.isConnected)return;params.set(key,section.open?'1':'0');writeLocation();};}for(const k of qfields){const input=$('#f-'+k);if(input)input.value=params.get(k)||(k==='period'?'all':'');}let debounce;
+  const submit=()=>{for(const [k,v]of new FormData($('#filters'))){if(v)params.set(k,v);else params.delete(k);}params.delete('page');if(view==='charts')resetChartSelection();const summary=$('.mobile-filters>summary');if(summary){const n=qfields.filter(k=>params.get(k)&&!(k==='period'&&params.get(k)==='all')).length;summary.textContent=(lang==='ru'?'Фильтры':'Filters')+(n?' · '+n:'');}writeLocation();refresh();};
+  $('#filters').onsubmit=e=>{e.preventDefault();clearTimeout(debounce);submit();};$('#filters').onchange=e=>{if(e.target.id==='f-q')return;clearTimeout(debounce);if(e.target.id==='f-period'&&e.target.value!=='custom'){$('#f-from').value='';$('#f-to').value='';}if(e.target.id==='f-from'||e.target.id==='f-to')$('#f-period').value='custom';submit();};$('#f-q').oninput=()=>{clearTimeout(debounce);debounce=setTimeout(submit,300);};
   $('#reset').onclick=()=>{qfields.forEach(k=>params.delete(k));writeLocation();render();};$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);$('#copy').textContent=t('copied');}catch(e){$('#copy').textContent=t('copy');window.prompt(t('copy'),location.href);}};
 }
 function chart(m){
@@ -395,8 +417,7 @@ function mountSharedShell(){
   if(!shell.firstElementChild)shell.innerHTML='<div class="workspace-head shared-tabs"></div>'+hero();
   shell.querySelector('.overview').hidden=!isHome();
   shell.querySelector('.shared-tabs').innerHTML=navigation()+`<span class="refresh">${t('serverTime')}</span>`;
-  const labels=[t('overview'),t('latest')];shell.querySelectorAll('.overview-fold>summary').forEach((el,i)=>el.textContent=labels[i]);
-  mountOverview();
+
 }
 async function refreshOverview(epoch){
   const serial=++overviewRequest,q=overviewQuery(),key=q.toString(),now=Date.now();
@@ -408,15 +429,15 @@ async function refreshOverview(epoch){
   overviewCache={key,data,at:now};awardsCache={data:awards,at:now};homeData=data;awardCatalog=awards;
   $('#kpis').innerHTML=kpis(data);
   const latest=data.latest;
-  $('#latest').innerHTML=latest?`<div class="mini-label latest-heading"><span>${t('latest')}</span><span class="latest-result">${resultBadge(latest)}</span><span class="latest-map">${esc(latest.map)}</span></div><div class="latest-match"><div class="hero-score">${person(latest.participants[0],latest)}<a class="score-link" ${link({match:latest.id})} aria-label="${t('details')}">${score(latest)}</a>${person(latest.participants[1],latest)}</div><div class="mini-label"><span>${esc(date(latest.startedAt))}</span>${modeBadges(latest,lang)}</div></div>`:`<p>${t('empty')}</p>`;
+  $('#latest').innerHTML=latest&&overviewMobile.matches?compactLatest(latest):latest?`<div class="mini-label latest-heading"><span>${t('latest')}</span><span class="latest-result">${resultBadge(latest)}</span><span class="latest-map">${esc(latest.map)}</span></div><div class="latest-match"><div class="hero-score">${person(latest.participants[0],latest)}<a class="score-link" ${link({match:latest.id})} aria-label="${t('details')}">${score(latest)}</a>${person(latest.participants[1],latest)}</div><div class="mini-label"><span>${esc(date(latest.startedAt))}</span>${modeBadges(latest,lang)}</div></div>`:`<p>${t('empty')}</p>`;
   mountAchievementBadges();syncJudgment();
 }
 let homeCleanup=()=>{};
 async function showHome(epoch){
   const module=await import('./home-ui.js');if(epoch!==renderEpoch)return;
   if(!document.getElementById('home-css')){const css=document.createElement('link');css.id='home-css';css.rel='stylesheet';css.href=new URL('./home.css',import.meta.url);document.head.append(css);}
-  $('#content').innerHTML=module.homePage(homeData,{lang,link,badges,catalog:awardCatalog});syncJudgment();
-  homeCleanup=module.mountHomeVersion($('#home-mod-version'),{base,lang});
+  $('#content').innerHTML=module.homePage(homeData,{lang,link,badges,catalog:awardCatalog,compact:overviewMobile.matches});syncJudgment();
+  if(!overviewMobile.matches)homeCleanup=module.mountHomeVersion($('#home-mod-version'),{base,lang});
 }
 let themeModule=null;
 function syncJudgment(){
@@ -440,7 +461,9 @@ async function refreshCharts(){
     else{const response=await fetch(base+'/api/charts/'+type+'?'+q,{signal});if(!response.ok)throw new Error('Chart unavailable');data=await response.json();chartLast={key,data,at:Date.now()};}
     if(serial!==chartsRequest||view!=='charts'||!$('#results'))return;
     chartsCleanup();$('#count').textContent=`${data.totals.matches} ${lang==='ru'?'матчей':'games'}`;$('#results').innerHTML=chartsModule.chartsPage(data,{lang,params,link});
-    chartsCleanup=chartsModule.mountCharts($('#results'),{params,data,lang,onChoices:open=>{params.set('chartChoices',open?'1':'0');writeLocation();},
+    const controls=$('#results .chart-controls'),mobileFilters=$('.mobile-filters');
+    if(mobileFilters){mobileFilters.querySelector(':scope>.chart-controls')?.remove();if(controls)mobileFilters.insertBefore(controls,$('#filters'));}
+    chartsCleanup=chartsModule.mountCharts($('#results'),{params,data,lang,controls,onChoices:open=>{params.set('chartChoices',open?'1':'0');writeLocation();},
       onChange:(k,v)=>{params.set(k,v);if(k==='chartResults')resetChartSelection();writeLocation();refreshCharts();},
       onPoint:value=>{params.set('chartPoint',value);params.delete('bucket');params.delete('bucketFrom');params.delete('bucketTo');writeLocation();refreshCharts();},
       onNavigate:u=>{[...params.keys()].forEach(k=>params.delete(k));u.searchParams.forEach((v,k)=>params.set(k,v));writeLocation('push');refreshCharts();}
@@ -478,7 +501,7 @@ async function render(){
     if(params.has('profile')&&!params.has('match')){await profile(epoch);if(epoch===renderEpoch&&location.hash==='#profile-achievements')document.getElementById('profile-achievements')?.scrollIntoView();return;}
     if(params.has('match')){await detail(params.get('match'),epoch);return;}
     const nextFacets=await api('facets');if(epoch!==renderEpoch)return;facets=nextFacets;
-    $('#content').innerHTML=listShell();mountOverview();mountFilters();await refresh();
+    $('#content').innerHTML=listShell();mountFilters();await refresh();
   }catch(e){if(epoch===renderEpoch){$('#content').innerHTML=`<div class="error">${t('error')}<br><button id="retry">${t('retry')}</button></div>`;$('#retry').onclick=render;}}
   finally{if(epoch===renderEpoch){mountAchievementBadges();$('#content').setAttribute('aria-busy','false');}}
 }

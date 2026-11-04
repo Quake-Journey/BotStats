@@ -180,7 +180,7 @@ export async function openStore(config) {
       return homeCache.get(JSON.stringify(filter),async()=>{
         const [result]=await demos.aggregate([...base(),{$match:filter},{$facet:{
           counts:[{$project:homeProjection}],
-          latest:[{$sort:{startedAt:-1,id:1}},{$limit:1},{$project:{_id:0,id:1,map:1,startedAt:1,status:1,winnerIndex:1,overtime:1,overtimeKind:1,modes:1,
+          latest:[{$sort:{startedAt:-1,id:1}},{$limit:1},{$project:{_id:0,id:1,map:1,startedAt:1,durationSeconds:1,recordedSeconds:1,status:1,winnerIndex:1,overtime:1,overtimeKind:1,modes:1,
             'participants.name':1,'participants.profile':1,'participants.isBot':1,'participants.score':1,'participants.skill':1,'participants.style':1,'participants.skillVariable':1,'participants.styleVariable':1}}]
         }}],{maxTimeMS:5000}).toArray();
         return {...buildHome(result.counts,now),latest:result.latest[0]||null};

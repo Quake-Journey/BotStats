@@ -27,6 +27,7 @@ html[data-theme=dark] .home-page,html[data-theme=judgment] .home-page{--home-car
 .home-award-holder>a{font-size:18px;font-weight:700;overflow-wrap:anywhere;color:var(--accent)}
 .home-award.human .home-award-holder>a{color:var(--human-name)}
 .home-award time{font-size:12px;color:var(--muted)}
+.home-award .achievement-badges{justify-content:flex-start;margin:0}
 .home-awards-empty{grid-column:1/-1;margin:0;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--muted)}
 @media(max-width:1199px){.home-page .home-participants,.home-page #home-bots .home-participants,.home-recent-awards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.home-page .home-participants,.home-page #home-bots .home-participants,.home-recent-awards{grid-template-columns:1fr}.home-section-more{justify-content:flex-start}.home-awards-heading{align-items:flex-start}}
@@ -42,3 +43,39 @@ html[data-theme=dark] .home-page,html[data-theme=judgment] .home-page{--home-car
 .home-ai-body>.home-roster:last-child{margin-bottom:0}
 .home-intro .home-awards-heading{margin-top:0}
 @media(max-width:600px){.home-ai-heading{gap:10px;padding:14px 12px}.home-ai-icon{width:48px;height:48px}#home-ai-title{font-size:24px}.home-ai-body{padding:10px}.home-ai-body .home-section-head{padding:12px}.home-ai{margin-top:16px}}
+
+/* Mobile home renders only one award and the three leaders in each roster. */
+@media(max-width:800px){
+  .home-compact{padding:0}
+  .home-compact .home-participants,.home-compact #home-bots .home-participants,.home-compact .home-recent-awards{grid-template-columns:1fr;gap:8px}
+  .home-compact .home-roster{margin:16px 0}
+  .home-compact .home-section-head{padding:8px 10px;gap:4px 10px;margin-bottom:8px;align-items:baseline}
+  .home-compact .home-section-head h3,.home-compact .home-awards-heading h3{font-size:17px;line-height:1.3}
+  .home-compact .home-section-head p{display:none}
+  .home-compact .home-section-more{gap:4px 10px;justify-content:flex-start}
+  .home-compact .home-section-more>a,.home-compact .home-shown{font-size:12px;line-height:1.5}
+  .home-compact .home-section-more>a{padding-block:4px}
+  .home-compact .home-awards-heading{margin:0 0 8px;gap:4px 10px}
+  .home-compact .home-participant{padding:8px 10px;border-radius:10px}
+  .home-compact .home-person-heading{gap:7px;grid-template-columns:18px minmax(0,1fr) auto}
+  .home-compact .home-participant.bot .home-person-heading{grid-template-columns:40px minmax(0,1fr) auto}
+  .home-compact .home-portrait,.home-compact .bot-avatar--roster{width:40px}
+  .home-compact .bot-avatar--roster{height:40px;border-radius:8px}
+  .home-compact .home-portrait .home-place{bottom:-2px;left:-3px;min-width:16px;padding:0 3px;font-size:10px}
+  .home-compact .home-person-name,.home-compact .home-participant.bot .home-person-name{font-size:18px}
+  .home-compact .home-person-wins{padding-left:4px}
+  .home-compact .home-person-wins b{font-size:24px}
+  .home-compact .home-person-wins>span{font-size:10px}
+  .home-compact .home-person-meta{font-size:12px;margin:2px 0;line-height:1.4}
+  .home-compact .home-no-awards{padding:2px 0;font-size:11px}
+  .home-compact .achievement-badges{--award-slot:34px;gap:4px;margin:3px 0 0}
+  .home-compact .achievement-mini img{width:30px;height:30px}
+  .home-compact .home-award{padding:10px;gap:5px;border-radius:10px}
+  .home-compact .home-award-heading{gap:10px}
+  .home-compact .home-award-heading img{width:48px;height:48px}
+  .home-compact .home-award-heading h4{font-size:17px}
+  .home-compact .home-award-holder{margin:0;gap:6px;line-height:1.35}
+  .home-compact .home-award-holder>a{font-size:16px}
+  .home-compact .home-award-holder>span{font-size:11px}
+  .home-compact .home-award time{font-size:11px;line-height:1.35}
+}
