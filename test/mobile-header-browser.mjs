@@ -11,9 +11,11 @@ try{
   const p=await b.newPage({viewport:{width,height:956},hasTouch:true}),errors=[];p.on('pageerror',e=>errors.push(e.message));
   for(const view of ['players','bots','rating','defeats','botdefeats','victims']){
    await p.goto(base+'?view='+view+'&lang=ru&theme=judgment');await ready(p);
-   const rows=p.locator('.compact-row');assert.ok(await rows.count()>0);
+   const rows=p.locator('.compact-row,.compact-match');assert.ok(await rows.count()>0);
    const measured=await rows.evaluateAll(els=>els.map(row=>{
-    const summary=row.querySelector('summary').getBoundingClientRect(),header=row.querySelector('.compact-identities').getBoundingClientRect();
+    const summary=row.querySelector('summary').getBoundingClientRect();
+    if(row.matches('.compact-match')){const header=row.querySelector('.compact-match-duel').getBoundingClientRect();return {h:row.getBoundingClientRect().height,dy:0,gap:summary.y-header.bottom,badges:[],twoLines:row.getBoundingClientRect().height<=68};}
+    const header=row.querySelector('.compact-identities').getBoundingClientRect();
     return {h:row.getBoundingClientRect().height,dy:Math.abs(summary.y-header.y),gap:summary.x-header.right+parseFloat(getComputedStyle(row.querySelector('.compact-identities')).paddingRight),badges:[...row.querySelectorAll('.compact-identities .achievement-badges')].map(e=>e.getBoundingClientRect().right<=summary.x)};
    }));
    assert.ok(measured.every(r=>r.dy<2&&r.gap>=0&&r.badges.every(Boolean)),view+' header controls do not overlap identity/awards');

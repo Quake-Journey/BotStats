@@ -30,10 +30,11 @@ function compactRows(id,columns,rows,lang) {
   };
   return `<div class="compact-rows" data-table="${esc(id)}">${rows.map(r=>`<article class="compact-row" data-kind="${r.isBot?'bot':'human'}"><div class="compact-identities">${identities.map(c=>`<div class="compact-identity">${cell(c,r)}</div>`).join('')}</div><div class="compact-metrics">${metrics.map(c=>`<div data-metric="${esc(c.key)}" title="${esc(c.label)}"><span>${esc(labels[c.key]||c.label)}</span><strong>${short(c,r)}</strong></div>`).join('')}</div><details class="compact-row-details"><summary>${ru?'Подробнее':'Details'}</summary><dl>${columns.filter(c=>!identities.includes(c)).map(c=>`<div><dt>${esc(c.label)}${c.hint?` <small>${esc(c.hint)}</small>`:''}</dt><dd>${cell(c,r)}</dd></div>`).join('')}</dl></details></article>`).join('')}</div>`;
 }
-export function renderTable(id,columns,rows,{params,lang,defaultKey=columns[0].key,defaultDir='desc',presorted=false}) {
+export function renderTable(id,columns,rows,{params,lang,defaultKey=columns[0].key,defaultDir='desc',presorted=false,mobileRow=null}) {
   const state=sortState(id,columns,params,defaultKey,defaultDir),column=columns.find(c=>c.key===state.key);
   const sorted=presorted?rows:sortRows(rows,column.value,state.dir,lang);
   const mobile=globalThis.matchMedia?.('(max-width:800px)').matches;
+  if(mobile&&mobileRow)return compactSort(id,columns,state,lang)+`<div class="match-list" data-table="${esc(id)}">${sorted.map(mobileRow).join('')}</div>`;
   if(mobile&&(columns.length>=5||id==='popularity'))return compactSort(id,columns,state,lang)+compactRows(id,columns,sorted,lang);
   return `${mobile?compactSort(id,columns,state,lang):''}<div class="table-wrap${mobile?' mobile-small-table':''}"><table class="data-table${columns.length>=12?' rating-table':''}" data-table="${esc(id)}"><thead><tr>${columns.map(c=>`<th scope="col"${c.cellClass?` class="${esc(c.cellClass)}"`:""} aria-sort="${state.key===c.key?(state.dir==='asc'?'ascending':'descending'):'none'}">${sortButton(id,c,state,lang)}</th>`).join('')}</tr></thead><tbody>${sorted.map(row=>`<tr>${columns.map(c=>`<td data-label="${esc(c.label+(c.hint?' ('+c.hint+')':''))}"${c.text||c.cellClass?` class="${esc([c.text?"text-cell":null,c.cellClass].filter(Boolean).join(" "))}"`:""}><span class="cell-value">${c.render?c.render(row):esc(c.value(row)??'—')}</span></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }

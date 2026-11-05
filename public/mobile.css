@@ -540,26 +540,42 @@
   #content .rating-guide .rule-points{font-size:var(--mobile-name)}
 }
 
-/* Match lists use the same compact participant rows as defeat lists. */
+/* Two-line mobile match cards; full context remains in the disclosure. */
 @media(max-width:800px){
   .compact-latest-meta{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:3px 6px}
   .compact-latest-meta>span:last-child{text-align:right}
   .compact-latest-meta .compact-latest-result{max-width:115px}
   .compact-latest-score .score-link{min-height:28px}
-  .match-row.compact-match{display:block;text-align:left;padding:6px 8px;margin:4px 0;border:1px solid var(--border);border-radius:9px}
-  .match-row.compact-match>div+div{border-left:0;padding-left:0}
-  .compact-match .compact-identity>a{font-size:var(--mobile-name)}
-  .compact-match .compact-identity .achievement-badges{margin:0;--award-slot:24px}
-  .compact-match .compact-identity .achievement-mini img{width:23px;height:23px}
-  .compact-match .participant-result{font-size:10px;line-height:1.2;padding:2px 3px;flex-shrink:0}
-  .compact-match .compact-metrics .score,.compact-match .compact-metrics .map-name{font-size:var(--mobile-name);line-height:1.25}
-  .compact-match .compact-metrics .map-name{display:inline;letter-spacing:0}
-  .compact-match .compact-metrics .map-name:before{display:none}
-  .compact-match .compact-metrics .score-link{white-space:nowrap}
-  .compact-match .compact-metrics .sep{padding-inline:2px}
-  .compact-match-foot{display:flex;align-items:center;justify-content:space-between;gap:4px 8px;flex-wrap:wrap;margin-top:4px;font-size:var(--mobile-caption);line-height:1.25;color:var(--muted)}
-  .compact-match-result{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-  .compact-match-result .badge{font-size:10px;line-height:1.2;padding:1px 4px}
-  .match-row.compact-match .compact-match-foot>.match-modes{display:contents;font-size:var(--mobile-caption);line-height:1.25}
-  .compact-match .compact-row-details>.button-link{font-size:var(--mobile-text);min-height:28px;padding:4px 0}
+  .match-row.compact-match{display:block;text-align:center;padding:5px 8px;margin:4px 0;border:1px solid var(--border);border-radius:9px;background:var(--surface)}
+  .match-row.compact-match:nth-of-type(even){background:var(--row-alt)}
+  .award-evidence .match-list{padding:0}
+  .compact-match-duel{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center;min-height:26px}
+  .compact-match-player{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:26px;font-weight:700;text-align:center}
+  .compact-match-player[data-player-kind=bot]{color:var(--accent)}
+  .compact-match-duel>.score-link{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:26px;max-width:110px}
+  .compact-match-duel .score{font-size:var(--mobile-number);line-height:26px;letter-spacing:0}
+  .compact-match-duel .sep{padding-inline:3px}
+  .compact-match-details>summary{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:6px;min-height:26px;list-style:none;cursor:pointer;font-size:var(--mobile-caption);line-height:26px;color:var(--muted);white-space:nowrap}
+  .compact-match-details>summary::-webkit-details-marker{display:none}
+  .compact-match-info{grid-column:1;grid-row:1;display:flex;align-items:center;gap:6px;min-width:0}
+  .compact-match-map{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:650}
+  .compact-match-duration{display:inline-flex;align-items:center;gap:3px;flex-shrink:0;font-variant-numeric:tabular-nums}
+  .compact-match-duration svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.3;flex-shrink:0}
+  .compact-match-forfeit{grid-column:2;grid-row:1;justify-self:center;color:var(--orange);font-weight:650}
+  .compact-match-more{grid-column:3;grid-row:1;justify-self:end;color:var(--accent)}
+  .compact-match-more:before{content:'›';display:inline-block;margin-right:4px;font-size:15px;line-height:1;transition:transform .15s}
+  .compact-match-details[open] .compact-match-more:before{transform:rotate(90deg)}
+  .compact-pair-wins{white-space:nowrap;line-height:26px;color:var(--accent)}
+  .compact-pair-wins b{font-size:var(--mobile-number);font-variant-numeric:tabular-nums}
+  .compact-pair-wins small{font-size:var(--mobile-caption);color:var(--muted)}
+  .compact-pair-rate{grid-column:2;grid-row:1;justify-self:center;font-variant-numeric:tabular-nums}
+  .compact-pair-matches{white-space:nowrap}
+  .compact-match-expanded{padding:4px 0;text-align:left;border-top:1px solid var(--border)}
+  .compact-match-expanded dl{margin:0 0 5px;font-size:var(--mobile-text)}
+  .compact-match-expanded dl>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:center;gap:8px;padding:5px 0}
+  .compact-match-expanded dt{color:var(--muted);overflow-wrap:anywhere}
+  .compact-match-expanded dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere}
+  .compact-match-expanded .match-modes{align-items:flex-end}
+  .compact-match-expanded .button-link{display:block;text-align:right;min-height:28px;font-size:var(--mobile-text)}
+  .compact-match :is(a,summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
 }

@@ -23,7 +23,7 @@ try{
      const intro=document.querySelector('.defeat-intro,.ranking-intro'),last=intro.querySelector('summary')||intro.querySelector('h2');
      return document.querySelector('.compact-sort').getBoundingClientRect().top-last.getBoundingClientRect().bottom;
     });assert.ok(gap>=0&&gap<=12,id+' accumulated blank space: '+gap);data.introGap=gap;
-    if(width===440)assert.ok((await p.locator('.compact-row').first().boundingBox()).y<450,id+' first result without excessive preamble');
+    if(width===440)assert.ok((await p.locator('.compact-row,.compact-match').first().boundingBox()).y<450,id+' first result without excessive preamble');
    }
    if(['human','bot'].includes(id)){
     assert.equal(await p.locator('.profile-filters').evaluate(e=>e.open),false);
