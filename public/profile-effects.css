@@ -1,0 +1,40 @@
+/* Profile-only decoration. No timers, canvas or runtime data fetching; no mobile effects. */
+@media(min-width:801px){
+  .profile-heading{--name-light:#1564a5;--name-shine:#4a8bc2;--name-bloom:#1564a544}
+  .profile-heading.bot-profile-heading{--name-light:#a14f10;--name-shine:#aa652d;--name-bloom:#c16b2444}
+  html:is([data-theme=dark],[data-theme=judgment]) .profile-heading{--name-light:#9bd8ff;--name-shine:#f0fbff;--name-bloom:#69bfff66}
+  html:is([data-theme=dark],[data-theme=judgment]) .profile-heading.bot-profile-heading{--name-light:#ffc088;--name-shine:#fff7df;--name-bloom:#ff943d66}
+  #content .profile-heading .profile-heading-name h1{position:relative;isolation:isolate;color:var(--name-light);text-shadow:0 0 18px var(--name-bloom),0 2px 5px #0003}
+  .profile-name-text{position:relative;z-index:1;text-shadow:0 0 16px var(--name-bloom)}
+  @supports(background-clip:text){
+    .profile-name-text{color:transparent;background-image:linear-gradient(110deg,var(--name-light) 20%,var(--name-light) 42%,var(--name-shine) 49%,var(--name-shine) 51%,var(--name-light) 58%,var(--name-light) 80%);background-size:260% 100%;background-position:100% 0;background-clip:text;-webkit-background-clip:text;animation:profile-name-shine 7s ease-in-out infinite}
+  }
+  .profile-heading h1::before{content:"";position:absolute;pointer-events:none;inset:-7px 0 auto;height:12px;opacity:.45;background:radial-gradient(circle at 12% 70%,var(--name-light) 0 1px,transparent 2px),radial-gradient(circle at 44% 40%,var(--name-light) 0 1px,transparent 2px),radial-gradient(circle at 79% 80%,var(--name-light) 0 1px,transparent 2px);filter:drop-shadow(0 0 4px var(--name-light));animation:profile-name-sparks 3.5s ease-in-out infinite}
+  .profile-heading h1::after{content:attr(data-name);position:absolute;pointer-events:none;inset:calc(100% - 8px) 0 auto;line-height:inherit;font:inherit;color:var(--name-light);text-shadow:none;transform:perspective(220px) rotateX(62deg) scale(1.05,-1.5);transform-origin:center;max-height:1.1em;overflow:hidden;filter:blur(.25px);opacity:.08;mask-image:linear-gradient(to top,#000,transparent);-webkit-mask-image:linear-gradient(to top,#000,transparent)}
+  .profile-heading[data-podium="1"]{--podium-light:#ffdc77;--podium-fire:#ffc23d;--podium-core:#fff5ce;--podium-edge:#ed7522}
+  .profile-heading[data-podium="2"]{--podium-light:#e3efff;--podium-fire:#c3d8ef;--podium-core:#fff;--podium-edge:#819bb9}
+  .profile-heading[data-podium="3"]{--podium-light:#e8ac78;--podium-fire:#d88b4b;--podium-core:#ffe3b6;--podium-edge:#a84f28}
+  html[data-theme=light] .profile-heading[data-podium="1"]{--podium-light:#916009}
+  html[data-theme=light] .profile-heading[data-podium="2"]{--podium-light:#4f627b}
+  html[data-theme=light] .profile-heading[data-podium="3"]{--podium-light:#96501e}
+  .profile-heading:is([data-podium="1"],[data-podium="2"],[data-podium="3"]) .profile-highlights .label{transform:translateY(-18px)}
+  .profile-heading:is([data-podium="1"],[data-podium="2"],[data-podium="3"]) .profile-rating-place b{position:relative;isolation:isolate;color:var(--podium-light);text-shadow:0 0 16px color-mix(in srgb,var(--podium-fire) 50%,transparent),0 2px 5px #0002}
+  .profile-heading:is([data-podium="1"],[data-podium="2"],[data-podium="3"]) .profile-rank-digit{display:inline-block;vertical-align:top;transform-origin:50% 50%;animation:profile-rank-turn 8.4s ease-in-out infinite;will-change:transform}
+  .profile-heading:is([data-podium="1"],[data-podium="2"],[data-podium="3"]) .profile-rating-place b::before{content:"";position:absolute;pointer-events:none;left:-.1em;right:-.1em;top:-.32em;height:.52em;background:linear-gradient(0deg,transparent,var(--podium-core) 22%,var(--podium-fire) 52%,var(--podium-edge) 85%,transparent);mask:url(./profile-flame.svg) center/100% 100% no-repeat;-webkit-mask:url(./profile-flame.svg) center/100% 100% no-repeat;filter:blur(1.2px) drop-shadow(0 0 6px var(--podium-fire));opacity:.55;transform-origin:50% 100%;animation:profile-podium-fire 1.15s ease-in-out infinite alternate}
+  .profile-heading:is([data-podium="1"],[data-podium="2"],[data-podium="3"]) .profile-rating-place b::after{content:"";position:absolute;pointer-events:none;left:-.12em;right:-.12em;top:-.24em;height:.2em;background:radial-gradient(circle at 25% 80%,var(--podium-core) 0 1px,transparent 2px),radial-gradient(circle at 74% 55%,var(--podium-fire) 0 1px,transparent 2px);filter:drop-shadow(0 0 3px var(--podium-fire));animation:profile-podium-embers 1.7s ease-out infinite}
+}
+@keyframes profile-name-shine{0%,15%{background-position:100% 0}65%,100%{background-position:-100% 0}}
+@keyframes profile-name-sparks{0%,100%{opacity:.15;transform:translateY(0)}50%{opacity:.6;transform:translateY(-3px)}}
+@keyframes profile-podium-fire{0%{transform:scale(1,.7) skewX(-3deg);opacity:.45}55%{transform:scale(.95,1) skewX(2deg);opacity:.65}100%{transform:scale(1.04,.82) skewX(-1deg);opacity:.5}}
+/* 3 seconds facing forward, 1.2 seconds turning; repeat in reverse. */
+@keyframes profile-rank-turn{0%,35.714286%{transform:perspective(450px) rotateY(0deg)}50%,85.714286%{transform:perspective(450px) rotateY(360deg)}100%{transform:perspective(450px) rotateY(0deg)}}
+@keyframes profile-podium-embers{0%{opacity:0;transform:translateY(1px)}30%{opacity:.8}100%{opacity:0;transform:translateY(-3px)}}
+/* The icon motion controller preserves the current angle when hover ends. */
+@media(min-width:801px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  #profile-achievements .achievement-badges.large>.achievement-mini>img{transform-origin:50% 50%}
+}
+@media(prefers-reduced-motion:reduce){
+  .profile-name-text,.profile-heading h1::before,.profile-rating-place b::before,.profile-rating-place b::after,.profile-rank-digit{animation:none!important}
+  .profile-name-text{background-position:100% 0}
+  .profile-heading h1::before,.profile-rating-place b::after{opacity:.15}
+}

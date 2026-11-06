@@ -2,6 +2,8 @@ import {modeBadges,modesDetail} from './modes-ui.js';
 import {gameplayDetail,mountGameplayDetails} from './gameplay-ui.js';
 import {onlinePage,mountOnline} from './online-ui.js';
 import {profileMatchQuery,matchPagination} from './pagination.js';
+import {profileSummaryQuery,profileStanding} from './profile-rating.js';
+import {mountProfileAwardMotion} from './profile-award-motion.js';
 import {modeDifficulty} from './match-modes.js';
 import {playersPage} from './players-ui.js';
 import {performancePolicy} from './performance-rating.js';
@@ -204,17 +206,17 @@ function compactLatest(m){
 function kpis(s){if(overviewMobile.matches)return compactKpis(s);return [['allMatches',s.matches,`${s.fullStats} ${t('fullStats')}`],['gameTime',`${num(s.minutes)} <small>${t('minutes')}</small>`,t('rounds')],['humanWins',s.humanWins,lang==='ru'?'Включая победы в овертайме':'Including overtime wins'],['botWins',s.botWins,lang==='ru'?'Включая технические победы':'Including forfeit wins']].map(([label,val,note])=>`<div class="kpi" data-kpi="${label}"><span class="label">${t(label)}</span><span class="value">${typeof val==='number'?num(val):val}</span><span class="note">${esc(note)}</span>${overviewHistory(s,label,lang,link)}${label==='gameTime'?winBalance(s,lang):label==='allMatches'?topKiller(s):''}</div>`).join('');}
 function rankTable(rows,map=false,id=map?'maps':'rating'){
   if(rows.some(r=>!r.isBot)||(!rows.length&&view!=='bots'))return averageTable(rows,map,id);
-  const data=rows.map((r,i)=>({...r,rank:i+1}));
+  const data=rows.map((r,i)=>({...r,rank:id==='profile'?r.rank:i+1}));
   const onlyBots=rows.length?rows.every(r=>r.isBot):view==='bots';
-  const columns=[{key:map?'map':'name',label:t(map?'map':'player'),text:true,value:r=>map?r.map:r.name,render:r=>map?esc(r.map):`<span class="rank">${r.rank}</span><a ${link({profile:r.name,kind:r.isBot?'bot':'human',match:null})}>${r.isBot?botAvatar(r.name):''}${esc(r.name)}</a>${badges(r)}`},
-    ...[['points',rows.some(r=>!r.isBot)?'averagePoints':'points'],['matches','matchCount'],['wins','wins'],['losses','losses'],['forfeitWins','forfeitWins'],['forfeits','forfeits'],['overtimeWins','overtimeWins'],['overtimeLosses','overtimeLosses'],['winRate','winRate'],['pointsPerMatch','pointsPerMatch']].filter(([key])=>key==='forfeitWins'?onlyBots:key==='forfeits'?!onlyBots:true).map(([key,label])=>({key,label:t(label),value:r=>r[key],render:r=>key==='points'?`<b class="${r.points>=0?'positive':'negative'}">${r.points>0?'+':''}${pointNum(r.points)}</b>`:key==='pointsPerMatch'?pointNum(r[key]):num(r[key],key==='winRate'?1:0)})),
+  const columns=[{key:map?'map':'name',label:t(map?'map':'player'),text:true,value:r=>map?r.map:r.name,render:r=>map?esc(r.map):`<span class="rank">${r.rank??'—'}</span><a ${link({profile:r.name,kind:r.isBot?'bot':'human',match:null})}>${r.isBot?botAvatar(r.name):''}${esc(r.name)}</a>${badges(r)}`},
+    ...[['points',rows.some(r=>!r.isBot)?'averagePoints':'points'],['matches','matchCount'],['wins','wins'],['losses','losses'],['forfeitWins','forfeitWins'],['forfeits','forfeits'],['overtimeWins','overtimeWins'],['overtimeLosses','overtimeLosses'],['winRate','winRate'],['pointsPerMatch','pointsPerMatch']].filter(([key])=>key==='pointsPerMatch'&&id==='profile'?false:key==='forfeitWins'?onlyBots:key==='forfeits'?!onlyBots:true).map(([key,label])=>({key,label:t(label),value:r=>r[key],render:r=>key==='points'?`<b class="${r.points>=0?'positive':'negative'}">${r.points>0?'+':''}${pointNum(r.points)}</b>`:key==='pointsPerMatch'?pointNum(r[key]):num(r[key],key==='winRate'?1:0)})),
     {key:'averageScore',label:t('averageResult'),value:r=>[r.averageScore,r.averageOpponentScore],render:r=>`${num(r.averageScore,1)} : ${num(r.averageOpponentScore,1)}`},
     {key:'averageFragDifference',label:t('averageDifference'),value:r=>r.averageFragDifference,render:r=>num(r.averageFragDifference,1)}];
   return renderTable(id,columns,data,{params,lang,defaultKey:map?'map':'points',defaultDir:map?'asc':'desc'});
 }
 function averageTable(rows,map,id){
-  const data=rows.map((r,i)=>({...r,rank:i+1}));
-  const columns=[{key:map?'map':'name',label:t(map?'map':'player'),text:true,value:r=>map?r.map:r.name,render:r=>map?esc(r.map):`<span class="rank">${r.performance?.provisional?'—':r.rank}</span><a ${link({profile:r.name,kind:'human',match:null})}>${esc(r.name)}</a>${badges(r)}`},
+  const data=rows.map((r,i)=>({...r,rank:id==='profile'?r.rank:i+1}));
+  const columns=[{key:map?'map':'name',label:t(map?'map':'player'),text:true,value:r=>map?r.map:r.name,render:r=>map?esc(r.map):`<span class="rank">${r.performance?.provisional?'—':r.rank??'—'}</span><a ${link({profile:r.name,kind:'human',match:null})}>${esc(r.name)}</a>${badges(r)}`},
     {key:'performance',label:t('averagePoints'),value:r=>r.performance?.value,render:r=>`<b class="positive">${num(r.performance?.value,2)}</b>${r.performance?.provisional?`<small class="column-hint">${t('provisional')} · ${r.performance.games}/${performancePolicy.minimumGames}</small>`:''}`},
     ...[['games','performanceGames'],['wins','normalWins'],['losses','normalLosses'],['winRate','completedWinRate'],['averageFragDifference','performanceDifference'],['averageDifficulty','botStrength']].map(([key,label])=>({key,label:t(label),value:r=>r.performance?.[key],render:r=>num(r.performance?.[key],['games','wins','losses'].includes(key)?0:2)}))];
   const render=(subset,tableId)=>renderTable(tableId,columns,subset,{params,lang,defaultKey:map?'map':'performance',defaultDir:map?'asc':'desc'});
@@ -262,7 +264,40 @@ function ratingLeaders(s){
 function profileControls(){const fields=`<div class="profile-period filters">${periodSelect()}${field('from','from','<input id="f-from" type="date">')}${field('to','to','<input id="f-to" type="date">')}</div>`;return overviewMobile.matches?`<details class="profile-filters" ${params.get('profileFilters')==='1'?'open':''}><summary>${lang==='ru'?'Фильтры':'Filters'}</summary>${fields}</details>`:fields;}
 function mountProfilePeriod(){const fold=$('.profile-filters');if(fold)fold.ontoggle=()=>{if(fold.isConnected){params.set('profileFilters',fold.open?'1':'0');writeLocation();}};for(const k of ['period','from','to'])$('#f-'+k).value=params.get(k)||(k==='period'?'all':'');for(const k of ['period','from','to'])$('#f-'+k).onchange=e=>{if(k==='period'){params.set('period',e.target.value);if(e.target.value!=='custom'){params.delete('from');params.delete('to');}}else{params.set('period','custom');if(e.target.value)params.set(k,e.target.value);else params.delete(k);}params.delete('profilePage');writeLocation();render();};}
 
-async function profile(epoch){const name=params.get('profile'),kind=params.get('kind')==='bot'?'bot':'human',q=profileMatchQuery(params);const [s,r]=await Promise.all([api('summary?'+q),api('matches?'+q)]),p=s.players.find(p=>p.name===name&&p.isBot===(kind==='bot'));if(epoch!==renderEpoch)return;if(!p){$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a><div class="detail-top${kind==='bot'?' bot-profile-heading':''}">${kind==='bot'?botAvatar(name,{size:'profile',eager:true}):''}<h1>${esc(name)}</h1></div>${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}<div class="empty">${t('empty')}</div>`;mountProfilePeriod();return;}const maps=s.byMap.map(m=>({map:m.map,...m.players.find(p=>p.name===name&&p.isBot===(kind==='bot'))}));$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a><div class="detail-top${kind==='bot'?' bot-profile-heading':''}">${kind==='bot'?botAvatar(name,{size:'profile',eager:true}):''}<div><div class="eyebrow">${kind==='bot'?t('botType'):t('profile')}</div><h1>${esc(name)}</h1><span class="subtle">${params.has('map')?esc(params.get('map')):t('allMaps')} · ${t({today:'periodToday',three:'periodThree',week:'periodWeek',month:'periodMonth',year:'periodYear',custom:'periodCustom'}[params.get('period')]||'periodAll')}</span></div></div>${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}<div class="kpis">${(kind==='human'?[['victoryTotal',num(p.victoryPoints,2)],['averageTotal',num(p.performance?.value,2)+(p.performance?.provisional?` <small>${t('provisional')}</small>`:'')],['completedMatches',p.completedMatches],['forfeitRate',num(p.forfeitRate,2)+'%']]:[['points',pointNum(p.points)],['matchCount',p.matches],['winRate',num(p.winRate,1)+'%'],['pointsPerMatch',pointNum(p.pointsPerMatch)]]).map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${value}</span></div>`).join('')}</div><section class="panel"><h2>${t('profileSummary')}</h2>${rankTable([p],false,'profile')}${unscoredWarning([p])}<p class="sub">${ratingExplanation(kind==='bot')}${kind==='bot'?'<br>'+t('ratingNote'):''}</p><div class="kpis">${[['averageKills',p.averageKills],['averageDeaths',p.averageDeaths],['averageKD',p.averageKillDeathDifference],['averageDamage',p.averageDamage],['overtimeForfeits',p.overtimeForfeits]].map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${num(value,1)}</span></div>`).join('')}</div><p class="sub">${t('meanNote')}</p></section><section class="panel"><h2>${t('mapBreakdown')}</h2>${kind==='human'?profileVictories(maps):''}${rankTable(maps,true)}<h3>${t('averages')}</h3>${mapAverages(maps)}</section><section class="panel" id="profile-matches"><h2>${t('matches')} · ${num(r.total)}</h2>${matchHeaders()}${matchPagination(r,{lang,profile:true})}${r.items.map(matchRow).join('')}${matchPagination(r,{lang,profile:true})}</section>`;mountProfilePeriod();document.querySelectorAll('[data-profile-page]').forEach(button=>button.onclick=async()=>{params.set('profilePage',button.dataset.profilePage);writeLocation('push');await render();document.getElementById('profile-matches')?.scrollIntoView({block:'start'});});}
+function profileRating(standing,kind){
+  const {value,rank,provisional,games}=standing,ru=lang==='ru';
+  if(value===null)return '';
+  const destination=link({view:kind==='bot'?'bots':'rating',ranking:'average',profile:null,kind:null,match:null,profilePage:null,page:null,q:null,bot:null,sort_rating_bots:null,dir_rating_bots:null,sort_rating_average:null,dir_rating_average:null});
+  const label=rank!==null?(ru?'Место в рейтинге':'Leaderboard rank'):(ru?'Рейтинг':'Rating');
+  const position=rank!==null?`<a class="profile-rating-place" ${destination} aria-label="${label}: ${num(rank)}"><span class="profile-rank-prefix" aria-hidden="true">${ru?'№':'#'}</span><b><span class="profile-rank-digit">${num(rank)}</span></b><span class="profile-rank-arrow" aria-hidden="true">↗</span></a>`:provisional?`<strong class="profile-rating-unranked">${ru?'Вне рейтинга':'Unranked'}</strong>`:'';
+  const score=`<div class="profile-rating-score"><span>${ru?'Очки':'Points'}:</span> <strong class="profile-rating-value">${kind==='bot'?pointNum(value):num(value,2)}</strong></div>`;
+  const note=provisional?`<span class="profile-rating-pending">${t('provisional')} · ${num(games)}/${performancePolicy.minimumGames}</span>`:'';
+  return `<div class="profile-rating ${kind}${value<0?' negative':''}"><span class="label">${label}</span>${position}${score}${note}</div>`;
+}
+function profileScope(){
+  const ru=lang==='ru',map=params.get('map'),period=params.get('period');
+  const named=(ru?{today:'за сегодня',three:'за последние 3 дня',week:'за последние 7 дней',month:'за последние 30 дней',year:'за последние 365 дней'}:{today:'for today',three:'for the last 3 days',week:'for the last 7 days',month:'for the last 30 days',year:'for the last 365 days'})[period];
+  let when=named||(ru?'за всё время существования статистики':'for the entire history of these statistics');
+  if(!named){
+    const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))?value:null;
+    const from=validDate(params.get('from')),to=validDate(params.get('to'));
+    const format=value=>ru?value.split('-').reverse().join('.'):value;
+    if(from||to)when=[from?(ru?'с ':'from ')+format(from):'',to?(ru?'по ':'to ')+format(to):''].filter(Boolean).join(' ');
+  }
+  return `${ru?'Данные предоставлены':'Data is shown'} ${when}${map?(ru?' по карте ':' on map ')+esc(map):''}`;
+}
+function profileRecord(p,kind){
+  if(!p)return '';
+  const rate=p.winRate==null?'—':`${num(p.winRate,1)}<small>%</small>`;
+  return `<div class="profile-record ${kind}"><span class="label">${lang==='ru'?'Победы':'Wins'}</span><strong class="profile-winrate">${rate}</strong><div class="profile-record-counts"><span>${lang==='ru'?'Матчей':'Matches'}: <b>${num(p.matches)}</b></span><span aria-hidden="true">·</span><span>${lang==='ru'?'Побед':'Wins'}: <b>${num(p.wins)}</b></span></div></div>`;
+}
+function profileKpis(p,kind){
+  if(!overviewMobile.matches)return '';
+  const metrics=kind==='human'?[['victoryTotal',num(p.victoryPoints,2)],['averageTotal',num(p.performance?.value,2)+(p.performance?.provisional?` <small>${t('provisional')}</small>`:'')],['completedMatches',p.completedMatches],['forfeitRate',num(p.forfeitRate,2)+'%']]:[['points',pointNum(p.points)],['matchCount',p.matches],['winRate',num(p.winRate,1)+'%'],['wins',p.wins]];
+  return `<div class="kpis profile-mobile-kpis">${metrics.map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${value}</span></div>`).join('')}</div>`;
+}
+function profileHeading(name,kind,standing,p){return `<div class="detail-top profile-heading${kind==='bot'?' bot-profile-heading':''}" data-podium="${standing.rank>=1&&standing.rank<=3?standing.rank:''}">${kind==='bot'?botAvatar(name,{size:'profile',eager:true}):''}<div class="profile-heading-name"><div class="eyebrow">${kind==='bot'?t('botType'):t('profile')}</div><h1 data-name="${esc(name)}" aria-label="${esc(name)}"><span class="profile-name-text">${esc(name)}</span></h1></div><div class="profile-highlights">${profileRating(standing,kind)}${profileRecord(p,kind)}</div><span class="subtle profile-scope">${profileScope()}</span></div>`;}
+async function profile(epoch){const name=params.get('profile'),kind=params.get('kind')==='bot'?'bot':'human',q=profileMatchQuery(params);const [s,r]=await Promise.all([api('summary?'+profileSummaryQuery(params)),api('matches?'+q)]),standing=profileStanding(s.players,name,kind),p=s.players.find(p=>p.name===name&&p.isBot===(kind==='bot'));if(epoch!==renderEpoch)return;if(!p){$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a>${profileHeading(name,kind,standing,p)}${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}<div class="empty">${t('empty')}</div>`;mountProfilePeriod();return;}const maps=s.byMap.filter(m=>m.players.some(p=>p.name===name&&p.isBot===(kind==='bot'))).map(m=>({map:m.map,...m.players.find(p=>p.name===name&&p.isBot===(kind==='bot'))}));$('#content').innerHTML=`<a class="back" ${link({view:kind==='bot'?'bots':'players',profile:null,kind:null,profilePage:null})}>${kind==='bot'?(lang==='ru'?'← К списку ботов':'← Bot directory'):(lang==='ru'?'← К списку игроков':'← Player directory')}</a>${profileHeading(name,kind,standing,p)}${achievementProfile(awardCatalog,name,{lang,link,kind})}${profileControls()}${profileKpis(p,kind)}<section class="panel"><h2>${t('profileSummary')}</h2>${rankTable([{...p,rank:standing.rank}],false,'profile')}${unscoredWarning([p])}<p class="sub">${ratingExplanation(kind==='bot')}${kind==='bot'?'<br>'+t('ratingNote'):''}</p><div class="kpis">${[['averageKills',p.averageKills],['averageDeaths',p.averageDeaths],['averageKD',p.averageKillDeathDifference],['averageDamage',p.averageDamage],['overtimeForfeits',p.overtimeForfeits]].map(([label,value])=>`<div class="kpi"><span class="label">${t(label)}</span><span class="value">${num(value,1)}</span></div>`).join('')}</div><p class="sub">${t('meanNote')}</p></section><section class="panel"><h2>${t('mapBreakdown')}</h2>${kind==='human'?profileVictories(maps):''}${rankTable(maps,true)}<h3>${t('averages')}</h3>${mapAverages(maps)}</section><section class="panel" id="profile-matches"><h2>${t('matches')} · ${num(r.total)}</h2>${matchHeaders()}${matchPagination(r,{lang,profile:true})}${r.items.map(matchRow).join('')}${matchPagination(r,{lang,profile:true})}</section>`;mountProfilePeriod();document.querySelectorAll('[data-profile-page]').forEach(button=>button.onclick=async()=>{params.set('profilePage',button.dataset.profilePage);writeLocation('push');await render();document.getElementById('profile-matches')?.scrollIntoView({block:'start'});});}
 function profileVictories(rows){
   const columns=[{key:'map',label:t('map'),text:true,value:r=>r.map},...['victoryPoints','completedMatches'].map(key=>({key,label:t(key),hint:key==='completedMatches'?t('noForfeit'):null,value:r=>r[key],render:r=>key==='completedMatches'?completedWithDuration(r,{lang}):num(r[key],2)}))];
   return `<h3>${t('victory')}</h3>`+renderTable('profile_victory_maps',columns,rows,{params,lang,defaultKey:'victoryPoints'})+`<h3>${t('average')}</h3>`;
@@ -514,8 +549,8 @@ async function refreshCharts(){
   }catch(e){if(e.name==='AbortError'||serial!==chartsRequest)return;if($('#results')){$('#results').innerHTML=`<div class="chart-error">${t('error')} <button id="chart-retry">${t('retry')}</button></div>`;$('#chart-retry').onclick=refreshCharts;}}
 }
 
-let renderEpoch=0,onlineCleanup=()=>{};
-window.addEventListener('pagehide',()=>{onlineCleanup();homeCleanup();});
+let renderEpoch=0,onlineCleanup=()=>{},profileAwardCleanup=()=>{};
+window.addEventListener('pagehide',()=>{onlineCleanup();homeCleanup();profileAwardCleanup();});
 window.addEventListener('pageshow',event=>{if(event.persisted)render();});
 async function render(){
   const section=profileSection(params);if(section){view=section;if(params.get('view')!==section){params.set('view',section);writeLocation();}}
@@ -523,6 +558,7 @@ async function render(){
   chartsAbort?.abort();chartsRequest++;chartsCleanup();chartsCleanup=()=>{};
   dynamicsCleanup();
   onlineCleanup();onlineCleanup=()=>{};
+  profileAwardCleanup();profileAwardCleanup=()=>{};
   homeCleanup();homeCleanup=()=>{};
   const epoch=++renderEpoch;requestId++;preferences();$('#content').setAttribute('aria-busy','true');
   try{
@@ -536,7 +572,7 @@ async function render(){
     const nextFacets=await api('facets');if(epoch!==renderEpoch)return;facets=nextFacets;
     $('#content').innerHTML=listShell();mountFilters();await refresh();
   }catch(e){if(epoch===renderEpoch){$('#content').innerHTML=`<div class="error">${t('error')}<br><button id="retry">${t('retry')}</button></div>`;$('#retry').onclick=render;}}
-  finally{if(epoch===renderEpoch){mountAchievementBadges();$('#content').setAttribute('aria-busy','false');}}
+  finally{if(epoch===renderEpoch){mountAchievementBadges();profileAwardCleanup=mountProfileAwardMotion($('#content'));$('#content').setAttribute('aria-busy','false');}}
 }
 document.addEventListener('click',e=>{
   const link=e.target.closest('[data-view]');if(!link||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button)return;

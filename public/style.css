@@ -227,3 +227,82 @@ html[data-page=inner] #content{margin-top:16px}
 #shared-shell [data-kpi=humanWins]>.value{color:var(--human-win)}
 #shared-shell [data-kpi=botWins]>.value{color:var(--bot-win)}
 @media(max-width:800px){#shared-shell .overview{margin:12px 0}.shared-tabs .tabs{gap:4px 14px}.shared-tabs .tab{padding:9px 0;font-size:14px}.shared-tabs{padding:10px 14px}}
+:root .profile-heading{display:grid;grid-template-columns:minmax(0,max-content) auto minmax(0,1fr);justify-content:start;align-items:center}
+:root .profile-heading.bot-profile-heading{grid-template-columns:auto minmax(0,max-content) auto minmax(0,1fr)}
+.profile-heading .profile-scope{grid-column:-2 / -1;justify-self:end;max-width:360px;line-height:1.5}
+.profile-heading-name{min-width:0;overflow-wrap:anywhere}
+.profile-heading:not(.bot-profile-heading) .profile-heading-name{text-align:center}
+.profile-highlights{display:flex;align-items:flex-start;gap:28px;min-width:0}
+.profile-record{display:flex;flex-direction:column;align-items:flex-start;gap:5px;font-variant-numeric:tabular-nums}
+.profile-record .label{font-size:18px;font-weight:600;line-height:1.3;color:var(--text)}
+.profile-winrate{display:block;font-size:52px;font-weight:750;line-height:64px;letter-spacing:-.03em;white-space:nowrap}
+.profile-winrate small{font-size:.5em;line-height:1;letter-spacing:0}
+.profile-record.bot .profile-winrate{color:var(--bot-win)}
+.profile-record.human .profile-winrate{color:var(--human-win)}
+.profile-record-counts{display:flex;align-items:baseline;gap:8px;font-size:15px;line-height:1.4;color:var(--muted);white-space:nowrap}
+.profile-record-counts b{font-size:22px;color:var(--text);letter-spacing:-.02em}
+#content .profile-heading .profile-heading-name h1{font-size:48px;font-weight:800;line-height:1.1;letter-spacing:-.025em;margin:6px 0;color:var(--human-name,var(--accent))}
+#content .profile-heading.bot-profile-heading .profile-heading-name h1{color:var(--orange)}
+html:is([data-theme=dark],[data-theme=judgment]) #content .profile-heading .profile-heading-name h1{text-shadow:0 2px 14px #0009}
+.profile-rating{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding-left:24px;border-left:1px solid var(--border);font-variant-numeric:tabular-nums}
+.profile-rating .label{font-size:18px;font-weight:600;line-height:1.3;color:var(--text)}
+.profile-rating-score{display:flex;align-items:baseline;gap:5px;font-size:15px;line-height:1.4;color:var(--muted);white-space:nowrap}
+.profile-rating-value{font-size:22px;letter-spacing:-.02em;color:var(--text)}
+.profile-rating-place{display:inline-flex;align-items:baseline;gap:5px;font-size:64px;line-height:1;font-weight:750;letter-spacing:-.035em;color:var(--profile-rating-accent);white-space:nowrap}
+.profile-rank-prefix{font-size:.45em;font-weight:600;letter-spacing:0}
+.profile-rank-arrow{font-size:20px;font-weight:500;letter-spacing:0}
+.profile-rating-place:hover{text-decoration:underline;text-underline-offset:3px}
+.profile-rating-unranked{font-size:22px;line-height:1.2;color:var(--text);white-space:nowrap}
+.profile-rating-pending{max-width:180px;font-size:13px;line-height:1.35;color:var(--muted)}
+.profile-rating.bot{--profile-rating-accent:var(--accent)}
+.profile-rating.human{--profile-rating-accent:var(--good)}
+.profile-rating.negative .profile-rating-value{color:var(--orange)}
+@media(min-width:801px){
+  :root .profile-heading{grid-template-rows:16px minmax(64px,auto) minmax(58px,auto);row-gap:5px;align-items:start}
+  :root .profile-heading:has(.profile-rating-pending){--profile-header-rows:4;grid-template-rows:16px minmax(64px,auto) minmax(58px,auto) auto}
+  .profile-heading-name{display:grid;grid-row:1 / span var(--profile-header-rows,3);grid-template-rows:subgrid;align-self:stretch}
+  .profile-heading-name .eyebrow{grid-row:1;align-self:end}
+  #content .profile-heading .profile-heading-name h1{grid-row:2;align-self:baseline;margin:0}
+  .profile-heading>.bot-avatar{grid-row:1 / span var(--profile-header-rows,3);align-self:start}
+  .profile-heading .profile-scope{grid-row:1 / span var(--profile-header-rows,3);align-self:center}
+  .profile-highlights{display:grid;grid-row:1 / span var(--profile-header-rows,3);grid-template-rows:subgrid;grid-template-columns:max-content max-content;column-gap:28px;row-gap:5px;align-self:stretch;align-items:baseline;min-width:max-content}
+  .profile-highlights .label{align-self:end}
+  .profile-highlights:has(.profile-rating){padding-left:24px;border-left:1px solid var(--border)}
+  .profile-highlights:not(:has(.profile-rating)){grid-template-columns:max-content}
+  .profile-highlights .profile-rating,.profile-highlights .profile-record{display:contents}
+  .profile-rating>.label{grid-column:1;grid-row:1}
+  .profile-rating-place,.profile-rating-unranked{grid-column:1;grid-row:2}
+  .profile-rating-score{grid-column:1;grid-row:3}
+  .profile-rating-pending{grid-column:1;grid-row:4}
+  .profile-record>.label{grid-column:2;grid-row:1}
+  .profile-winrate{grid-column:2;grid-row:2}
+  .profile-record-counts{grid-column:2;grid-row:3}
+  .profile-highlights:not(:has(.profile-rating)) .profile-record>*{grid-column:1}
+  .profile-rating-unranked{display:flex;align-items:center;min-height:64px}
+}
+@media(min-width:801px) and (max-width:1100px){
+  #content .profile-heading>.bot-avatar{width:96px;height:96px}
+  .profile-heading .profile-scope{grid-column:1 / -1;grid-row:auto;justify-self:start;max-width:none}
+  .profile-highlights{column-gap:20px}
+  .profile-record-counts{gap:5px}
+  .profile-record-counts b,.profile-rating-value{font-size:20px}
+}
+@media(max-width:800px){
+  :root .profile-heading{grid-template-columns:minmax(0,max-content) auto}
+  :root .profile-heading.bot-profile-heading{grid-template-columns:auto minmax(0,max-content) auto}
+  .profile-heading .profile-scope{display:none}
+  .profile-highlights{display:contents}
+  .profile-record{display:none}
+  #content .profile-heading .profile-heading-name h1{font-size:28px;margin:4px 0}
+  .profile-rating{padding-left:10px;gap:3px}
+  .profile-rating .label{font-size:13px}
+  .profile-rating-place{font-size:42px;gap:3px}
+  .profile-rank-arrow{font-size:14px}
+  .profile-rating-score{font-size:11px;gap:3px}
+  .profile-rating-value{font-size:16px}
+  .profile-rating-unranked{font-size:17px}
+  .profile-rating-pending{font-size:11px;max-width:128px}
+}
+@media(max-width:380px){
+  #content .profile-heading .profile-heading-name h1{font-size:24px}
+}
