@@ -1,0 +1,33 @@
+:root{--duel-human:#245fc0;--duel-bot:#ad490b}
+html[data-theme=dark],html[data-theme=judgment]{--duel-human:#8bbdff;--duel-bot:#ffad70}
+.duel-bot{--participant-color:var(--duel-bot);color:var(--participant-color)}
+.duel-human{--participant-color:var(--duel-human);color:var(--participant-color)}
+.legend.duel-legend{justify-content:space-between;margin:6px 0 12px;gap:8px 20px}
+.legend.duel-legend span{color:var(--participant-color);overflow-wrap:anywhere;min-width:0;font-weight:650}
+.legend.duel-legend span::before{background:var(--participant-color);height:5px;width:14px;border-radius:2px}
+.legend.duel-legend small{font-size:inherit;color:var(--muted);font-weight:400}
+.pickup-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 24px;align-items:start}
+.pickup-group{min-width:0;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.pickups-panel .pickup-group h3{font-size:16px;font-weight:750;margin:0;padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.pickup-group .compare{border:0;background:none;padding:8px 12px}
+.pickup-row+.pickup-row{border-top:1px solid var(--border)}
+.pickup-row:nth-child(odd){background:var(--row-alt)}
+.pickups-panel .compare-label{display:grid;grid-template-columns:minmax(2.5ch,auto) minmax(0,1fr) minmax(2.5ch,auto);align-items:center;font-size:15px;gap:10px}
+.pickups-panel .compare-label span{text-align:center;overflow-wrap:anywhere}
+.pickups-panel .compare-label b:last-child{text-align:right}
+.pickups-panel .bars{height:7px;width:100%}
+.pickup-map-counts{font-size:12px;color:var(--muted);padding:0 12px 7px;text-align:center}
+.pickups-panel .pickup-details{margin-top:16px}
+.pickups-panel .pickup-details>summary{font-weight:650;cursor:pointer;padding:8px 0}
+.pickups-panel .pickup-details[open]>summary{margin-bottom:8px}
+@media(max-width:700px){
+  .pickup-groups{grid-template-columns:minmax(0,1fr);gap:9px}
+  .pickups-panel .legend.duel-legend{font-size:12px;gap:5px 12px;margin:5px 0 8px}
+  .pickups-panel .pickup-group h3{padding:6px 8px;font-size:13px}
+  .pickups-panel .compare{padding:6px 8px}
+  .pickups-panel .compare-label{font-size:12px;gap:7px;margin-bottom:4px}
+  .pickups-panel .bars{height:5px}
+  .pickups-panel .pickup-details{margin-top:8px}
+  .pickups-panel .pickup-details>summary{font-size:12px;padding:6px 0}
+  .pickup-map-counts{font-size:11px;padding:0 8px 5px}
+}
