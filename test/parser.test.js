@@ -125,6 +125,44 @@ test('server automatic recording starts after Fight; filename and initial HUD id
   const m=summarize(c,{...meta,originalName:'2026-10-22_10-00-00_q2duel5_David-X[200]-vs-q-default_3-1_001.mvd2'}).matches[0];
   assert.equal(m.startObserved,true);assert.equal(m.startSource,'server_autorecord');assert.equal(m.durationSeconds,300);assert.ok(!m.warnings.includes('partial_start'));
 });
+
+test('a changed timelimit cannot replace active duration with the opening HUD',()=>{
+  for(const [initial,seconds]of [['2:00',600],['10:00',120],['2:00',151.3]]){
+    const {c,event,frame}=scene();c.part().frames=[];
+    event('configstring',{index:1572,text:initial});frame(0,'David-X[200]');
+    frame(seconds*1000-100,'David-X[200]',[22,11]);
+    event('print',{time_ms:seconds*1000,level:2,text:'Timelimit hit. Match ended.\n'});
+    assert.equal(summarize(c,meta).matches[0].durationSeconds,seconds);
+  }
+});
+
+test('timelimit metadata corrects frame drift, ignores rejected votes and post-match changes',()=>{
+  for(const [limit,elapsed,expected]of [[600,599.9,600],[120,120.1,120],[0,120.1,120.1],[75.5,75.5,75.5]]){
+    const {c,event,frame}=scene();c.part().frames=[];
+    event('configstring',{index:1572,text:'2:00'});frame(0,'David-X[200]');
+    const snapshot=(time,snapshot,eventName,value)=>event('print',{time_ms:time,level:2,text:'OTX_MATCH_SETTINGS '+JSON.stringify({schema:1,snapshot,event:eventName,frame:time/100,map:'q2duel5',duration_seconds:value,hardcore:0,hardcore_server:0,training_server:0,training_override:-1})+'\n'});
+    snapshot(0,1,'start',120);
+    snapshot(50000,2,'change',limit);
+    event('print',{time_ms:50000,level:2,text:'q started a vote: timelimit 20\n'});
+    frame(elapsed*1000-100,'David-X[200]',[22,11]);
+    event('print',{time_ms:elapsed*1000,level:2,text:'Timelimit hit. Match ended.\n'});
+    snapshot(elapsed*1000+100,3,'end',limit);
+    snapshot(elapsed*1000+200,4,'change',1200);
+    assert.equal(summarize(c,meta).matches[0].durationSeconds,expected);
+  }
+});
+
+test('timelimit changes still exclude pauses and do not stretch forfeits to the new limit',()=>{
+  for(const forfeit of [false,true]){
+    const {c,event,frame}=scene();c.part().frames=[];
+    event('configstring',{index:1572,text:'2:00'});frame(0,'David-X[200]');
+    event('print',{time_ms:100000,level:2,text:'Game paused\n'});
+    event('print',{time_ms:130000,level:2,text:'Fight!\n'});
+    const end=forfeit?181300:630000;frame(end-100,'David-X[200]',[22,11]);
+    event('print',{time_ms:end,level:2,text:forfeit?'David-X[200] wins by forfeit!\n':'Timelimit hit. Match ended.\n'});
+    assert.equal(summarize(c,meta).matches[0].durationSeconds,forfeit?151.3:600);
+  }
+});
 test('a timestamp alone does not turn a mid-match recording into a full game',()=>{
   const {c,event,frame}=scene();c.part().prints=[];c.part().frames=[];
   frame(5000,'David-X[200]',[2,1]);event('print',{time_ms:300000,level:2,text:'Timelimit hit. Match ended.\n'});

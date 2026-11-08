@@ -7,7 +7,7 @@ import path from 'node:path';
 import {normalizeMatchResult} from '../public/match-result.js';
 import {settingsRecords,assembleSettings,applyMatchSettings,participantBotRows} from './match-settings.js';
 
-export const PARSER_VERSION = '0.3.0';
+export const PARSER_VERSION = '0.3.1';
 const styles = '(default|arcade|defence|chaotic)';
 export const plain = text => [...text].map(c => c.charCodeAt(0) >= 128 && c.charCodeAt(0) < 256 ? String.fromCharCode(c.charCodeAt(0) & 127) : c).join('').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
 const botName = name => /-X(?:\[\d+\]|>\d+)$/.test(name);
@@ -271,8 +271,15 @@ export function summarize(collector, meta) {
       const extraTime=overtimeState(ps,fs,start,end,gameTime);
       let durationSeconds=startObserved ? Math.max(0,(end-start-pausedMs)/1000) : null;
       const remaining=fs[0]?.timer.match(/^(\d+):(\d\d)$/);
-      if(status==='completed' && !extraTime.overtimePlayed && /Timelimit hit/.test(ended?.text||'') && startObserved && remaining) {
-        durationSeconds=(+remaining[1]*60 + +remaining[2]);
+      if(status==='completed' && !extraTime.overtimePlayed && /Timelimit hit/.test(ended?.text||'') && startObserved) {
+        // A vote may change the limit after the opening HUD. Only use a limit
+        // to remove frame-sized timing drift when it agrees with active play.
+        // End snapshots can follow the result table; later changes cannot.
+        const finalSettings=recordedSettings.snapshots.filter(x=>
+          (x.timeMs<=end||x.event==='end'&&x.timeMs<=end+2000)&&
+          Number.isFinite(x.settings?.duration_seconds)).at(-1);
+        const limit=finalSettings?.settings.duration_seconds??(remaining?+remaining[1]*60+ +remaining[2]:null);
+        if(Number.isFinite(limit)&&limit>0&&Math.abs(limit-durationSeconds)<=1)durationSeconds=limit;
       }
       const knownSettings=prints.filter(p=>p.timeMs<=end).map(p=>p.level===2?settingChange(p.text,p.timeMs):null).filter(Boolean);
       const changes=knownSettings.filter(x=>x.timeMs>=start).map(x=>({...x,matchMs:gameTime(x.timeMs)}));
