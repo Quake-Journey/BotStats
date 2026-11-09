@@ -3,6 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {parseMvd,PARSER_VERSION} from './parser.js';
+import {importerHeaders,ingestBase,reportStatus,startStatusReporter} from './importer-status.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const atomicJson=async(file,data)=>{await writeFile(file+'.tmp',JSON.stringify(data,null,2));await rename(file+'.tmp',file);};
@@ -28,12 +29,11 @@ async function* demoBytes(file){
   finally{await handle.close();}
 }
 export async function sendManifest(config,file,manifest){
-  const base=config.apiUrl.replace(/\/$/,''),headers={'x-ingest-token':config.ingestToken};
-  const url=new URL(base);if(url.protocol!=='https:'&&!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw new Error('Remote ingest requires HTTPS');
-  let r=await fetch(`${base}/api/ingest/demos/${manifest.demo.sha256}`,{method:'PUT',headers:{...headers,'content-type':'application/octet-stream'},body:demoBytes(file),duplex:'half',signal:AbortSignal.timeout(120000)});
-  if(!r.ok)throw new Error(`Demo upload HTTP ${r.status}: ${await r.text()}`);
-  r=await fetch(`${base}/api/ingest/manifests`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify(manifest),signal:AbortSignal.timeout(30000)});
-  if(!r.ok)throw new Error(`Manifest HTTP ${r.status}: ${await r.text()}`);return r.json();
+  const base=ingestBase(config),headers=importerHeaders(config);
+  let r=await fetch(`${base}/api/ingest/demos/${manifest.demo.sha256}`,{method:'PUT',headers:{...headers,'content-type':'application/octet-stream'},body:demoBytes(file),duplex:'half',signal:AbortSignal.timeout(120000),redirect:'error'});
+  if(!r.ok){await r.body?.cancel();throw new Error(`Demo upload HTTP ${r.status}`);}
+  r=await fetch(`${base}/api/ingest/manifests`,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({...manifest,...(config.serverId?{sourceServerId:config.serverId}:{})}),signal:AbortSignal.timeout(30000),redirect:'error'});
+  if(!r.ok){await r.body?.cancel();throw new Error(`Manifest HTTP ${r.status}`);}return r.json();
 }
 export async function runOnce(config,{force=false}={}){
   const queue=path.resolve(root,config.queueDir||'data/queue');await mkdir(queue,{recursive:true});
@@ -77,6 +77,8 @@ const entryScript=process.env.pm_exec_path||process.argv[1];
 if(entryScript&&path.resolve(entryScript)===fileURLToPath(import.meta.url)){
   const config=JSON.parse(await readFile(process.argv[2]||path.join(root,'importer.local.json'),'utf8'));
   const watch=process.argv.includes('--watch'),force=process.argv.includes('--force');
+  const stopStatus=watch?startStatusReporter(config):()=>{};
+  if(!watch&&config.status)await reportStatus(config).catch(()=>console.error('Status reporting unavailable'));
   do{
     let result;
     try{result=await runOnce(config,{force});}
@@ -90,4 +92,5 @@ if(entryScript&&path.resolve(entryScript)===fileURLToPath(import.meta.url)){
     if(!watch){if(result.errors.length)process.exitCode=1;break;}
     await new Promise(r=>setTimeout(r,(config.pollSeconds||10)*1000));
   }while(watch);
+  stopStatus();
 }

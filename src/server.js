@@ -1,6 +1,6 @@
 import express from 'express';
 import Ajv from 'ajv';
-import { createHash, timingSafeEqual, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createWriteStream, createReadStream } from 'node:fs';
 import { mkdir, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
@@ -11,12 +11,14 @@ import { openStore } from './store.js';
 import { loadAssets } from './assets.js';
 import { completeScoreHistory } from '../public/score-history.js';
 import { attachOnline } from './online.js';
+import {onlineConfig,sourceAuth,publicServer} from './servers.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const hashPattern=/^[a-f0-9]{64}$/;
 const ajv=new Ajv({strict:false,allErrors:false});
 const validate=ajv.compile({type:'object',additionalProperties:false,required:['schemaVersion','parserVersion','demo','matches'],properties:{
   schemaVersion:{const:1},parserVersion:{type:'string',pattern:'^[0-9]+\\.[0-9]+\\.[0-9]+$'},
+  sourceServerId:{type:'string',pattern:'^[a-z0-9][a-z0-9_-]{0,47}$'},
   demo:{type:'object',additionalProperties:false,required:['sha256','size','originalName','recordedAt','dateSource'],properties:{sha256:{type:'string',pattern:'^[a-f0-9]{64}$'},size:{type:'integer',minimum:6,maximum:134217728},originalName:{type:'string',maxLength:240,pattern:'^[^/\\\\]+\\.mvd2$'},recordedAt:{type:['string','null'],maxLength:40},dateSource:{enum:['filename',null]}}},
   matches:{type:'array',minItems:1,maxItems:100,items:{type:'object',required:['id','map','participants','status','winnerIndex','statsComplete','startedAt'],properties:{
     id:{type:'string',pattern:'^[a-f0-9]{64}-[0-9]+-[0-9]+$'},map:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,64}$'},
@@ -33,12 +35,13 @@ export async function createService(config) {
   const assets=await loadAssets(path.join(root,'public'));
   if(config.previewExamples===true)assets.html=assets.html.replace('<div id="content"',
     '<aside class="warning preview-notice">Локальная проверка / Local preview. Игроки «Пример …» — демонстрационные сценарии режимов, не реальные матчи. Производственная статистика не меняется. / Players named “Пример …” are test scenarios, not real games; production statistics are unchanged.</aside><div id="content"');
+  const online=await onlineConfig(config.online),authorize=sourceAuth(online.servers,config.ingestToken);
   const store=await openStore(config),app=express();app.disable('x-powered-by');app.enable('strict routing');
   app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Cross-Origin-Opener-Policy':'same-origin','Cross-Origin-Embedder-Policy':'require-corp','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});next();});
-  const bindOnlineSockets=await attachOnline(app,base,config.online);
+  const bindOnlineSockets=await attachOnline(app,base,config.online,{config:online});
+  const closeStore=store.close;store.close=async()=>{bindOnlineSockets.close();await closeStore();};
   app.get(base,(req,res)=>res.redirect(308,base+'/'+(req.url.includes('?')?req.url.slice(req.url.indexOf('?')):'')));
   const api=express.Router();app.use(base,api);
-  const authorize=(req,res,next)=>{const supplied=Buffer.from(req.headers['x-ingest-token']||''),expected=Buffer.from(config.ingestToken);if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))return res.status(401).json({error:'Unauthorized'});next();};
   let uploads=0;
   api.put('/api/ingest/demos/:sha',authorize,async(req,res,next)=>{
     const sha=req.params.sha;if(!hashPattern.test(sha))return res.status(400).json({error:'Invalid SHA-256'});
@@ -58,6 +61,10 @@ export async function createService(config) {
     try {
       const m=req.body;
       if(!validate(m)||m.matches.some(x=>!x.id.startsWith(m.demo.sha256+'-')||x.participants.filter(p=>p.isBot).length!==1)||new Set(m.matches.map(x=>x.id)).size!==m.matches.length)return res.status(400).json({error:'Invalid manifest',details:validate.errors?.[0]?.message});
+      if(m.sourceServerId!==undefined&&m.sourceServerId!==req.sourceServer?.id)return res.status(403).json({error:'Source identity does not match credentials'});
+      m.source=req.sourceServer?publicServer(req.sourceServer):null;
+      delete m.sourceServerId;
+      for(const match of m.matches){delete match.source;delete match.sourceServerId;}
       const file=path.join(demoRoot,m.demo.sha256+'.mvd2'),info=await stat(file).catch(()=>null);
       if(!info||info.size!==m.demo.size)return res.status(409).json({error:'Upload matching demo first'});
       const hash=createHash('sha256');for await(const b of createReadStream(file))hash.update(b);

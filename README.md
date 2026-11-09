@@ -263,11 +263,16 @@ version. Restart the website process after updating UI files. The browser then
 loads one coherent asset revision. UI or ranking formula updates do not require
 clearing the database or re-importing recordings.
 
-## Online game server and shared Q2TV
+## Online game servers and shared Q2TV
 
-The `Online` / `Онлайн` tab monitors `91.227.18.67:27950`. It uses the same
+For the multi-server registry, authenticated LAN status reports, source identity
+and coordinated rollout, see [MULTISERVER.md](MULTISERVER.md). The legacy default
+server remains supported.
+
+The legacy default for the `Online` / `Онлайн` tab is `91.227.18.67:27950`. It uses the same
 `/api/servers?game=q2&not_empty=0&ignore_bots=0` feed as Tournament's `servers.js`.
-The backend coalesces requests for five seconds; the page refreshes every ten
+The backend polls each configured monitor every ten seconds independently of
+visitors; the page refreshes every ten
 seconds by default and pauses polling in a hidden tab. Stale data is labelled.
 Refresh interval, player variant and roster sorting are shareable URL state.
 
@@ -287,8 +292,9 @@ Current Hardcore/Training are read with the fixed read-only RCON command
 Set `BOTSTATS_ONLINE_RCON_PASSWORD` in the existing Tournament `.env` (or in the
 BotStats process environment); a private `online.rconPassword` JSON setting is
 also supported. Never put the credential in browser assets or update archives.
-Each Online refresh reads the effective modes, with simultaneous viewers sharing
-one request and a maximum one-second cache. Failed reads show Unknown instead of
+Each background monitor cycle reads the effective modes once, independently of
+visitor count. Explicit registries keep credentials and snapshots per server.
+Failed reads show Unknown instead of
 old on/off values. Only the two mode values and check time reach the browser;
 the raw RCON response is neither exposed nor logged. No gameplay cvars are changed.
 

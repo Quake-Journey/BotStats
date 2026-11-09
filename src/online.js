@@ -1,72 +1,10 @@
-import { readFile } from 'node:fs/promises';
-import { parseEnv } from 'node:util';
+import express from 'express';
 import http from 'node:http';
 import https from 'node:https';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { createModeMonitor } from './online-modes.js';
-
-const DEFAULT_SERVER = '91.227.18.67:27950';
-const safeText = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 300);
-const privateKey = /password|passwd|rcon|token|secret|api.?key/i;
-
-function origin(value) {
-  const u = new URL(value);
-  if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.pathname !== '/' || u.search || u.hash) throw new Error('Invalid online service origin');
-  return u.origin;
-}
-
-// Only named settings are read from Tournament's environment. The optional
-// RCON credential is kept server-side and never included in a public response.
-export async function onlineConfig(config = {}) {
-  let env = {};
-  try { env = parseEnv(await readFile(config.tournamentEnv || 'C:/nodejs/Tournament/.env', 'utf8')); }
-  catch (e) { if (e.code !== 'ENOENT') throw new Error('Cannot read Tournament environment'); }
-  const server = config.server || DEFAULT_SERVER;
-  if (!/^[a-z0-9.-]+:\d{1,5}$/i.test(server) || Number(server.split(':').at(-1)) > 65535 || Number(server.split(':').at(-1)) < 1) throw new Error('Invalid online game server');
-  const tournamentPort=Number(env.SITE_PORT)||3000;
-  return { server, monitorOrigin: origin(config.monitorOrigin || env.SERVERS_API || 'http://127.0.0.1:3001'),
-    tournamentOrigin: origin(config.tournamentOrigin || `http://127.0.0.1:${tournamentPort}`), pollSeconds: 10,
-    rconPassword:config.rconPassword||process.env.BOTSTATS_ONLINE_RCON_PASSWORD||env.BOTSTATS_ONLINE_RCON_PASSWORD||'' };
-}
-
-export function normalizeServer(data, address, now = Date.now()) {
-  if (!Array.isArray(data?.servers)) throw new Error('Invalid monitor response');
-  const srv = data.servers.find(s => s.server === address || `${s.ip}:${s.port}` === address || s.allAddrs?.includes(address));
-  if (!srv) return null;
-  const info = Object.fromEntries(Object.entries(srv.serverInfo || {}).filter(([k,v]) => !privateKey.test(k) && ['number','string','boolean'].includes(typeof v)).map(([k,v]) => [safeText(k),safeText(v)]));
-  const players = (Array.isArray(srv.serverPlayers) ? srv.serverPlayers : []).slice(0,256).map(p => {
-    const score = typeof p.score === 'number' || typeof p.score === 'string' && /^-?\d+$/.test(p.score.trim()) ? Number(p.score) : null;
-    const ping = p.ping !== '' && p.ping != null && Number.isFinite(Number(p.ping)) ? Number(p.ping) : null;
-    return { name: safeText(p.name), score: Number.isFinite(score) ? score : null, ping, spectator: score === null };
-  });
-  const time = Date.parse(srv.lastUpdated);
-  return { address, info, players, updatedAt: Number.isFinite(time) ? new Date(time).toISOString() : null,
-    stale: srv.stale === true || Number.isFinite(time) && now-time > 120000 };
-}
-
-// One shared request per interval, independent of the number of page visitors.
-// On failure retain the snapshot but explicitly mark it stale.
-export function createMonitor(config, { fetchImpl = fetch, now = Date.now, cacheMs = 5000 } = {}) {
-  let snapshot = null, lastAttempt = -Infinity, pending;
-  return async function status() {
-    if (pending) return pending;
-    if (now()-lastAttempt < cacheMs) return snapshot;
-    lastAttempt = now();
-    pending = (async () => {
-      try {
-        const r = await fetchImpl(config.monitorOrigin+'/api/servers?game=q2&not_empty=0&ignore_bots=0', {signal:AbortSignal.timeout(7000),redirect:'error'});
-        if (!r.ok) throw new Error('Monitor unavailable');
-        const server = normalizeServer(await r.json(), config.server, now());
-        snapshot = { server, state: !server ? 'missing' : server.stale ? 'stale' : 'online', checkedAt: new Date(now()).toISOString() };
-      } catch {
-        snapshot = { server: snapshot?.server ? {...snapshot.server,stale:true} : null, state: 'unavailable', checkedAt: new Date(now()).toISOString() };
-      } finally { pending = null; }
-      return snapshot;
-    })();
-    return pending;
-  };
-}
+import {onlineConfig,createServerDirectory,safeText,sourceAuth} from './servers.js';
+export {onlineConfig,normalizeServer,createMonitor} from './servers.js';
 
 // Release names come from current server status, never the last recorded match.
 // Older builds advertise only otx_version=1; their release is in the hostname.
@@ -86,25 +24,45 @@ export function serverModVersion(snapshot) {
 
 // The two existing players create a socket at the origin root. Adapt only that
 // URL inside their iframe; engine code/assets and UDP transport stay Tournament's.
-export function playerBridge(base, address) {
-  return `(()=>{const Native=window.WebSocket;window.WebSocket=class extends Native{constructor(url,protocols){const u=new URL(url,location.href);if(u.searchParams.get('target')!==${JSON.stringify(address)})throw new Error('Unexpected Q2TV target');const dest=new URL(${JSON.stringify(base+'/api/online/socket')},location.origin);dest.protocol=location.protocol==='https:'?'wss:':'ws:';dest.searchParams.set('target',${JSON.stringify(address)});super(dest.href,protocols);}};})();`;
+export function playerBridge(base, address, id) {
+  return `(()=>{const Native=window.WebSocket;window.WebSocket=class extends Native{constructor(url,protocols){const u=new URL(url,location.href);if(u.searchParams.get('target')!==${JSON.stringify(address)})throw new Error('Unexpected Q2TV target');const dest=new URL(${JSON.stringify(base+'/api/online/socket')},location.origin);dest.protocol=location.protocol==='https:'?'wss:':'ws:';dest.searchParams.set('target',${JSON.stringify(address)});${id?"dest.searchParams.set('serverId',"+JSON.stringify(id)+");":''}super(dest.href,protocols);}};})();`;
 }
 
-export async function attachOnline(app, base, options) {
-  const config = await onlineConfig(options), status = createMonitor(config), currentModes=createModeMonitor(config);
-  app.get(base+'/api/online/version', async (req,res) => {
-    res.set('Cache-Control','no-store').json(serverModVersion(await status()));
+export async function attachOnline(app, base, options, dependencies={}) {
+  const config=dependencies.config||await onlineConfig(options),directory=createServerDirectory(config,dependencies);
+  const select=req=>config.servers.find(s=>s.id===(req.query.serverId??config.defaultId));
+  const playerURL=(s,variant)=>base+'/'+variant+'/'+(s.legacy?'':'servers/'+encodeURIComponent(s.id)+'/')+'?s='+encodeURIComponent(Buffer.from(s.address).toString('base64'));
+  const payload=s=>{
+    const snapshot=directory.read(s.id);
+    return {...snapshot,id:s.id,address:s.address,pollSeconds:config.pollSeconds,version:serverModVersion(snapshot),
+      players:s.q2tv?{desktop:playerURL(s,'q2tv'),mobile:playerURL(s,'q2tv-mobile')}:null};
+  };
+  app.get(base+'/api/online/servers',(req,res)=>res.set('Cache-Control','no-store').json({defaultServerId:config.defaultId,servers:config.servers.map(payload)}));
+  app.get(base+'/api/online/version',async(req,res)=>{
+    const selected=select(req);if(!selected)return res.sendStatus(404);
+    res.set('Cache-Control','no-store').json(serverModVersion(await directory.ready(selected.id)));
   });
-  app.get(base+'/api/online', async (req,res) => {
-    const [snapshot,modes]=await Promise.all([status(),currentModes()]);
-    res.set('Cache-Control','no-store').json({...snapshot,modes,address:config.server,pollSeconds:config.pollSeconds,
-      players:{desktop:base+'/q2tv/?s='+encodeURIComponent(Buffer.from(config.server).toString('base64')),mobile:base+'/q2tv-mobile/?s='+encodeURIComponent(Buffer.from(config.server).toString('base64'))}});
+  app.get(base+'/api/online',async(req,res)=>{
+    const selected=select(req);if(!selected)return res.status(404).json({error:'Unknown server'});
+    await directory.ready(selected.id);
+    res.set('Cache-Control','no-store').json({...payload(selected),servers:config.servers.map(s=>({metadata:directory.read(s.id).metadata,state:directory.read(s.id).state,checkedAt:directory.read(s.id).checkedAt})),defaultServerId:config.defaultId});
   });
-  app.get(base+'/api/online/player-bridge.js', (req,res) => res.type('js').set('Cache-Control','no-cache').send(playerBridge(base,config.server)));
+  app.post(base+'/api/ingest/status',sourceAuth(config.servers),express.json({limit:'128kb'}),(req,res,next)=>{
+    try{res.set('Cache-Control','no-store').json(directory.report(req.sourceServer.id,req.body));}catch(e){next(e);}
+  });
+  app.get(base+'/api/online/player-bridge.js',(req,res)=>{
+    const selected=select(req);if(!selected||!selected.q2tv)return res.sendStatus(403);
+    res.type('js').set('Cache-Control','no-cache').send(playerBridge(base,selected.address,selected.legacy?null:selected.id));
+  });
   for (const player of ['q2tv','q2tv-mobile']) {
     app.use(base+'/'+player, async (req,res,next) => {
       if (!['GET','HEAD'].includes(req.method)) return res.sendStatus(405);
-      const name = req.path;
+      const scoped=/^\/servers\/([a-z0-9][a-z0-9_-]{0,47})(\/.*)$/.exec(req.path);
+      if(req.path.startsWith('/servers/')&&!scoped)return res.sendStatus(404);
+      if(scoped&&req.query.serverId!==undefined&&req.query.serverId!==scoped[1])return res.sendStatus(403);
+      const name=scoped?scoped[2]:req.path;
+      const config=scoped?select({query:{serverId:scoped[1]}}):select(req);if(!config||!config.q2tv)return res.sendStatus(403);
+      if((name==='/'||name.endsWith('.html'))&&req.query.s!==undefined&&req.query.s!==Buffer.from(config.address).toString('base64'))return res.sendStatus(403);
       // Fixed upstream, fixed asset directories. No arbitrary URL proxy or env files.
       const isDownload = name==='/http-file';
       if(isDownload && req.query.server!==config.server)return res.sendStatus(403);
@@ -123,21 +81,22 @@ export async function attachOnline(app, base, options) {
           'Content-Security-Policy':"default-src 'self' blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'",'Cache-Control':isHTML?'no-cache':isDownload?'no-store':upstream.headers.get('cache-control')||'no-cache'});
         res.type(upstream.headers.get('content-type') || 'application/octet-stream');
         if (isHTML) {
-          const html = (await upstream.text()).replace(/<head([^>]*)>/i,`<head$1><script src="${base}/api/online/player-bridge.js"></script>`);
+          const html = (await upstream.text()).replace(/<head([^>]*)>/i,`<head$1><script src="${base}/api/online/player-bridge.js${config.legacy?'':'?serverId='+encodeURIComponent(config.id)}"></script>`);
           res.send(html);
         } else if(req.method==='HEAD') {await upstream.body?.cancel();res.end();}
         else await pipeline(Readable.fromWeb(upstream.body),res);
       } catch(e) {if(!abort.signal.aborted){if(!res.headersSent)res.status(502).type('text').send('Q2TV is temporarily unavailable');else res.destroy();}}
     });
   }
-  return function bindSockets(server) {
+  const bindSockets=function(server) {
     const sockets = new Set();
-    const closeAll=()=>{for(const socket of sockets)socket.destroy();};
+    const closeAll=()=>{directory.close();for(const socket of sockets)socket.destroy();};
     server.on('upgrade',(req,socket,head)=>{
       let url, requestOrigin;
       try {url=new URL(req.url,'http://localhost');requestOrigin=new URL(req.headers.origin);}
       catch {socket.destroy();return;}
-      if (url.pathname!==base+'/api/online/socket' || url.searchParams.get('target')!==config.server || requestOrigin.host!==req.headers.host || sockets.size>=64 || req.headers['sec-websocket-protocol']!=='quake2') {socket.destroy();return;}
+      const config=select({query:Object.fromEntries(url.searchParams)});
+      if (!config||!config.q2tv||url.pathname!==base+'/api/online/socket' || url.searchParams.get('target')!==config.server || requestOrigin.host!==req.headers.host || sockets.size>=64 || req.headers['sec-websocket-protocol']!=='quake2') {socket.destroy();return;}
       const dest=new URL('/?target='+encodeURIComponent(config.server),config.tournamentOrigin);
       const headers={host:dest.host,origin:dest.origin,connection:'Upgrade',upgrade:'websocket'};
       for(const k of ['sec-websocket-key','sec-websocket-version','sec-websocket-protocol','sec-websocket-extensions'])if(req.headers[k])headers[k]=req.headers[k];
@@ -154,4 +113,6 @@ export async function attachOnline(app, base, options) {
     server.on('close',closeAll);
     return closeAll;
   };
+  bindSockets.close=()=>directory.close();
+  return bindSockets;
 }
