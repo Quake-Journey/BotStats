@@ -39,9 +39,10 @@ try{
         await page.goto(base+'/?lang='+lang+'&theme='+theme+'&view=matches');await page.waitForSelector('[data-server-entry]',{state:'attached'});
         assert.equal(await page.locator('[data-server-menu-count]').innerText(),'2');await openMenu(page);
         assert.equal(await page.locator('[data-server-entry]').count(),2);
-        assert.equal(await page.locator('[data-server-entry=minipc] .server-menu-connect').count(),0);
-        assert.equal(await page.locator('[data-copy-address]').getAttribute('data-copy-address'),'arena.example:27950');
-        assert.equal(await page.locator('.server-menu-connect').isVisible(),width>800);
+        assert.equal(await page.locator('[data-server-entry=minipc] .server-menu-connect a').count(),0);
+        assert.equal(await page.locator('[data-server-entry=default] [data-copy-address]').getAttribute('data-copy-address'),'arena.example:27950');
+        assert.equal(await page.locator('[data-server-entry=minipc] [data-copy-address]').getAttribute('data-copy-address'),'10.10.1.51:27910');
+        for(const control of await page.locator('.server-menu-connect').all())assert.equal(await control.isVisible(),width>800);
         assert.ok((await page.locator('[data-server-entry=minipc]').innerText()).includes('VPN'));
         assert.deepEqual(await geometry(page),{overflow:false,outside:[],overlaps:[]},`${engine} ${width} ${lang}`);
         if(engine==='chromium'&&[320,1440].includes(width)&&lang==='ru')await page.screenshot({path:evidence+`/menu-${width}.png`});
@@ -62,7 +63,8 @@ try{
         await page.route('**/api/online/servers',async route=>{calls++;if(fail)return route.abort();const response=await route.fetch(),json=await response.json();if(single)json.servers=json.servers.filter(s=>s.id==='minipc');await route.fulfill({response,json});});
         await page.goto(base+'/about?lang=ru&theme=judgment&profile=someone&kind=bot&match=old&profilePage=3&map=q2duel5');
         await page.waitForSelector('[data-server-entry]',{state:'attached'});await openMenu(page);assert.equal(calls,1);
-        await page.locator('[data-copy-address]').click();assert.equal(await page.evaluate(()=>window.copied),'connect arena.example:27950');
+        await page.locator('[data-server-entry=default] [data-copy-address]').click();assert.equal(await page.evaluate(()=>window.copied),'connect arena.example:27950');
+        await page.locator('[data-server-entry=minipc] [data-copy-address]').click();assert.equal(await page.evaluate(()=>window.copied),'connect 10.10.1.51:27910');
         const target=new URL(await page.locator('[data-server-entry=minipc] a').getAttribute('href'),base);
         for(const key of ['profile','kind','match','profilePage'])assert.equal(target.searchParams.has(key),false,key);
         assert.equal(target.searchParams.get('map'),'q2duel5');assert.equal(target.searchParams.get('view'),'online');

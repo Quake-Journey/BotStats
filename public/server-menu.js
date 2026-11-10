@@ -9,7 +9,7 @@ export function serverMenuHTML(servers,{lang,link}){
   const t=labels[lang]||labels.en;
   return servers.map(s=>{
     const m=s.metadata,connect=m.access==='public';
-    return `<article class="server-menu-entry" data-server-entry="${esc(s.id)}"><a class="server-menu-name" ${link(onlineRoute(s.id))}>${esc(m.name)} ↗</a><span class="server-menu-address">${esc(m.address)}</span><span class="server-menu-access">${t[m.access]||t.private}</span>${connect?`<div class="server-menu-connect"><a href="quake2://${esc(m.address)}">${t.play}</a><button type="button" data-copy-address="${esc(m.address)}">${t.copy}</button></div>`:''}</article>`;
+    return `<article class="server-menu-entry" data-server-entry="${esc(s.id)}"><a class="server-menu-name" ${link(onlineRoute(s.id))}>${esc(m.name)} ↗</a><span class="server-menu-address">${esc(m.address)}</span><span class="server-menu-access">${t[m.access]||t.private}</span><div class="server-menu-connect">${connect?`<a href="quake2://${esc(m.address)}">${t.play}</a>`:''}<button type="button" data-copy-address="${esc(m.address)}">${t.copy}</button></div></article>`;
   }).join('')||`<p>${t.empty}</p>`;
 }
 
