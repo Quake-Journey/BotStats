@@ -7,13 +7,27 @@ const strings={
 Object.assign(strings.ru,{unknownRole:'Роль не передана',servers:'Сервер',offline:'Сервер не отвечает на запрос',public:'Публичный доступ',lan:'Локальная сеть / VPN',private:'Закрытый доступ',noTV:'Q2TV для этого сервера не настроен',noLiveTV:'Q2TV доступен при свежем статусе онлайн',noConnect:'Публичное подключение недоступно',received:'Отчёт получен',missing:'Статус ещё не получен',unavailable:'Не удалось проверить статус'});
 Object.assign(strings.en,{unknownRole:'Role not reported',servers:'Server',offline:'No response from the game server',public:'Public access',lan:'Local network / VPN',private:'Private access',noTV:'Q2TV is not configured for this server',noLiveTV:'Q2TV requires a fresh online status',noConnect:'Public connection unavailable',received:'Report received',missing:'No status received yet',unavailable:'Could not verify status'});
 
+Object.assign(strings.ru,{name:'Участник',connections:'Подключено',playing:'Игроки',spectators:'Зрители',unknownRole:'Роль неизвестна'});
+Object.assign(strings.en,{name:'Name',players:'Server roster',connections:'Connected',playing:'Players',spectators:'Spectators',unknownRole:'Role unknown'});
+
+export function rosterCounts(players) {
+  const counts={clients:players.length,players:0,spectators:0,unknown:0};
+  for(const p of players)counts[p.spectator===true?'spectators':p.spectator===false?'players':'unknown']++;
+  return counts;
+}
+
+export function rosterCountsHTML(players,lang) {
+  const t=strings[lang]||strings.en,counts=rosterCounts(players);
+  return `<div class="online-roster-counts">${[['players','playing'],['spectators','spectators'],['unknown','unknownRole']].filter(([key])=>key!=='unknown'||counts.unknown).map(([key,label])=>`<span data-roster-count="${key}">${t[label]}: <b>${counts[key]}</b></span>`).join('')}</div>`;
+}
+
 export function scoreChanges(previous,next) {
   const changes=new Map();
   if(!previous||previous.address!==next.address||previous.info.mapname!==next.info.mapname||previous.info.time_remaining==='WARMUP'&&next.info.time_remaining!=='WARMUP'||previous.info.time_remaining!=='WARMUP'&&next.info.time_remaining==='WARMUP')return changes;
-  const total=s=>s.players.reduce((a,p)=>a+(p.score||0),0);
+  const total=s=>s.players.reduce((a,p)=>a+(p.spectator===true?0:p.score||0),0);
   if(total(previous)>10&&total(next)<total(previous)*0.35)return changes;
-  const old=new Map(previous.players.map(p=>[p.name,p.score]));
-  for(const p of next.players)if(p.score!==null&&old.get(p.name)!=null&&p.score!==old.get(p.name))changes.set(p.name,p.score-old.get(p.name));
+  const old=new Map(previous.players.map(p=>[p.name,p]));
+  for(const p of next.players){const before=old.get(p.name);if(p.spectator!==true&&before?.spectator===p.spectator&&p.score!==null&&before?.score!=null&&p.score!==before.score)changes.set(p.name,p.score-before.score);}
   return changes;
 }
 
@@ -79,19 +93,20 @@ export function mountOnline(root,{base,lang,params,onState}) {
     const serverHead=meta?`<div class="online-server-head"><h2>${esc(meta.name)}</h2><div class="online-address"><span>${esc(meta.address)}</span><strong>${t[meta.access]||t.unknown}</strong>${meta.access==='public'?`<button id="online-copy" type="button">${t.copy}</button><a href="quake2://${esc(meta.address)}">${t.join} ↗</a>`:`<button type="button" disabled>${t.noConnect}</button>`}</div></div>`:'';
     const bindCopy=()=>{if($('#online-copy'))$('#online-copy').onclick=async()=>{try{await navigator.clipboard.writeText('connect '+meta.address);if($('#online-copy'))$('#online-copy').textContent=t.copied;}catch{}};};
     const s=latest?.server;if(!s){$('#online-server').innerHTML=serverHead+`<p class="online-empty">${t[latest?.state]||t.loading}</p>`;bindCopy();return;}
-    const inf=s.info,participants=s.players.filter(p=>p.spectator===false).length,viewers=s.players.filter(p=>p.spectator===true).length,unknownRoles=s.players.filter(p=>p.spectator===null).length;
+    const inf=s.info;
     const currentDetails=$('#online-settings');if(currentDetails)settingsOpen=currentDetails.open;
     const compare=(a,b)=>{if(a[sort]==null)return b[sort]==null?0:1;if(b[sort]==null)return -1;const diff=sort==='name'?a.name.localeCompare(b.name,lang):a[sort]-b[sort];return (direction==='asc'?1:-1)*diff;};
-    const rows=[...s.players].sort((a,b)=>Number(a.spectator)-Number(b.spectator)||compare(a,b)).map(p=>{
+    const roleOrder=p=>p.spectator===false?0:p.spectator===true?1:2;
+    const rows=[...s.players].sort((a,b)=>roleOrder(a)-roleOrder(b)||compare(a,b)).map(p=>{
       const d=changes.get(p.name)||0;
-      return `<tr><td class="online-name">${esc(p.name)}${p.spectator===true?`<small>${t.spectator}</small>`:p.spectator===null?`<small>${t.unknownRole}</small>`:''}</td><td class="online-score">${p.score??'—'}${d?`<small class="online-delta ${d>0?'up':'down'}" title="${t.delta}">${d>0?'▲ +':'▼ '}${d}</small>`:''}</td><td class="online-ping ${p.ping!==null&&p.ping<60?'low':''}">${p.ping??'—'}</td></tr>`;
+      return `<tr data-online-role="${p.spectator===true?'spectator':p.spectator===false?'player':'unknown'}"><td class="online-name">${esc(p.name)}${p.spectator===true?`<small>${t.spectator}</small>`:p.spectator!==false?`<small>${t.unknownRole}</small>`:''}</td><td class="online-score">${p.score??'—'}${d?`<small class="online-delta ${d>0?'up':'down'}" title="${t.delta}">${d>0?'▲ +':'▼ '}${d}</small>`:''}</td><td class="online-ping ${p.ping!==null&&p.ping<60?'low':''}">${p.ping??'—'}</td></tr>`;
     }).join('');
     const skip=new Set(['hostname','sv_hostname','mapname','map','maxclients','max_clients','gamename','serverIp','serverPort','time_remaining','sv_hardcore','sv_training','sv_bots_training_mode']);
     const entries=Object.entries(inf).filter(([k])=>!skip.has(k)).sort(([a],[b])=>a.localeCompare(b));
     const modes=liveModesHTML(latest?.modes,lang);
     $('#online-server').innerHTML=`${serverHead}
-      <div class="online-metrics"><div><span>${t.map}</span><strong>${esc(inf.mapname||inf.map||'—')}</strong></div><div><span>${t.time}</span><strong>${inf.time_remaining==='WARMUP'?t.warmup:esc(inf.time_remaining||'—')}</strong></div>${`<div><span>${t.players}</span><strong>${s.players.length}<small> / ${esc(inf.maxclients||inf.max_clients||'—')}</small></strong>${viewers?`<small>${t.spectator}: ${viewers}</small>`:''}${unknownRoles?`<small>${t.unknownRole}: ${unknownRoles}</small>`:''}</div><div><span>${t.mod}</span><strong class="online-mod">${esc(inf.gamename||inf.game||'—')}</strong><small>${esc(latest.version?.version||t.unknown)}</small></div>`}</div>${modes}
-      <div class="online-columns"><section class="online-roster"><h3>${t.players}${compact?` <small>· ${participants}${unknownRoles?` + ${unknownRoles} ?`: ''}${viewers?` + ${viewers} ${lang==='ru'?'зрит.':'watching'}`:''}</small>`:''}</h3>${rows?`<table class="online-table"><thead><tr>${['name','score','ping'].map(k=>`<th aria-sort="${sort===k?(direction==='asc'?'ascending':'descending'):'none'}"><button data-online-sort="${k}" type="button">${t[k]} ${sort===k?(direction==='asc'?'↑':'↓'):'↕'}</button></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`:`<p class="online-empty">${t.empty}</p>`}</section>
+      <div class="online-metrics"><div><span>${t.map}</span><strong>${esc(inf.mapname||inf.map||'—')}</strong></div><div><span>${t.time}</span><strong>${inf.time_remaining==='WARMUP'?t.warmup:esc(inf.time_remaining||'—')}</strong></div><div data-online-connections><span>${t.connections}</span><strong>${s.players.length}<small> / ${esc(inf.maxclients||inf.max_clients||'—')}</small></strong></div><div><span>${t.mod}</span><strong class="online-mod">${esc(inf.gamename||inf.game||'—')}</strong><small>${esc(latest.version?.version||t.unknown)}</small></div></div>${modes}
+      <div class="online-columns"><section class="online-roster"><h3>${t.players}</h3>${rosterCountsHTML(s.players,lang)}${rows?`<table class="online-table"><thead><tr>${['name','score','ping'].map(k=>`<th aria-sort="${sort===k?(direction==='asc'?'ascending':'descending'):'none'}"><button data-online-sort="${k}" type="button">${t[k]} ${sort===k?(direction==='asc'?'↑':'↓'):'↕'}</button></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`:`<p class="online-empty">${t.empty}</p>`}</section>
       <details id="online-settings" class="online-settings" ${settingsOpen?'open':''}><summary>${t.settings}<span>${entries.length}</span></summary><dl>${entries.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></details></div>`;
     $('#online-settings').ontoggle=e=>{if(e.target.isConnected){settingsOpen=e.target.open;update('onlineSettings',settingsOpen?'1':'0');}};
     for(const button of root.querySelectorAll('[data-online-sort]'))button.onclick=()=>{const key=button.dataset.onlineSort;direction=key===sort?(direction==='asc'?'desc':'asc'):(key==='name'?'asc':'desc');sort=key;update('sort_online',sort);update('dir_online',direction);draw();};
@@ -105,12 +120,12 @@ export function mountOnline(root,{base,lang,params,onState}) {
       servers=data.servers;
       const entry=servers.find(s=>s.id===(selected||data.defaultServerId))||servers[0];
       if(!entry)throw new Error();
-      if(selected!==entry.id){selected=entry.id;previous=null;changes=new Map();update('onlineServer',selected);}
+      if(selected!==entry.id){if(latest&&latest.id!==entry.id)closePlayer();selected=entry.id;previous=null;changes=new Map();update('onlineServer',selected);}
       if(entry.server&&entry.state==='online'&&(!previous||entry.server.updatedAt!==previous.updatedAt||JSON.stringify(entry.server.players)!==JSON.stringify(previous.players))){changes=scoreChanges(previous,entry.server);previous=entry.server;}
       if(entry.state!=='online'){changes=new Map();previous=null;}
       latest=entry;draw();
       if(params.get('tv')==='1'&&!iframe&&latest.state==='online')openPlayer(false);
-    }catch(e){if(!stopped&&request===controller){latest={...latest,state:'unavailable'};changes=new Map();previous=null;draw();}}
+    }catch(e){if(!stopped&&request===controller){latest={...latest,state:'unavailable',modes:null};changes=new Map();previous=null;draw();}}
     finally{if(request===controller){request=null;if(!stopped){$('#online-reload').disabled=false;schedule();}}}
   }
   function selectServer(id){

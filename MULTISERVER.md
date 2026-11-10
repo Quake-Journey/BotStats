@@ -72,7 +72,7 @@ global `ingestToken` and importers without `serverId` keep working. They cannot
 claim a source ID or submit game status with that global credential.
 
 After the website candidate is accepted and deployed, update a selected importer
-with the `importer/` payload and add the following fields to its existing private
+with the `Importer/` payload and add the following fields to its existing private
 configuration:
 
 ```json
@@ -138,6 +138,18 @@ MINIPC as Missing until that separate migration is approved and completed.
   The reporter preserves real names/scores/pings and marks that role Unknown;
   it does not infer spectators from zero score. Explicit roles, when supplied
   by a monitor or compatible source report, are displayed separately.
+  The same rule applies to monitor responses: numeric, absent, invalid or
+  sentinel scores do not establish a role. A boolean `spectator` is authoritative;
+  the monitor's exact `score: "Spectator"` marker is accepted when that field is
+  absent. An explicit `spectator: null` stays Unknown. Names and ping are never
+  role evidence. No game/mod changes or new RCON commands are required.
+- Each available `server` snapshot includes `counts` with `clients`, `players`,
+  `spectators`, and `unknown`. The last three add up to `clients`. The UI labels
+  the overall total Connected and separately labels each role count, including
+  zero players when only spectators are connected. Unknown roles appear in
+  their own group, never silently counted as players or spectators. Scores are
+  preserved; spectator score changes and role transitions do not create frag
+  trend arrows. Cached roster counts have the same freshness as their snapshot.
 
 New attributed imports use the same two authenticated headers. Optional manifest
 `sourceServerId` must match those credentials. Source metadata is stamped by the

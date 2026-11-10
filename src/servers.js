@@ -63,10 +63,16 @@ export function normalizeServer(data,address,now=Date.now(),staleSeconds=120) {
   const players=(Array.isArray(srv.serverPlayers)?srv.serverPlayers:[]).slice(0,256).map(p=>{
     const score=typeof p.score==='number'||typeof p.score==='string'&&/^-?\d+$/.test(p.score.trim())?Number(p.score):null;
     const ping=p.ping!==''&&p.ping!=null&&Number.isFinite(Number(p.ping))?Number(p.ping):null;
-    return {name:safeText(p.name),score:Number.isFinite(score)?score:null,ping,spectator:p.spectator===null?null:typeof p.spectator==='boolean'?p.spectator:score===null};
+    // A score (including zero, missing or a sentinel) is not a player role.
+    // Preserve explicit roles and the monitor's literal spectator marker only.
+    const spectator=typeof p.spectator==='boolean'?p.spectator:
+      p.spectator===undefined&&typeof p.score==='string'&&/^spectator$/i.test(p.score.trim())?true:null;
+    return {name:safeText(p.name),score:Number.isFinite(score)?score:null,ping,spectator};
   });
   const stamp=Date.parse(srv.lastUpdated),valid=Number.isFinite(stamp)&&stamp<=now+5000;
-  return {address,info,players,updatedAt:valid?new Date(stamp).toISOString():null,stale:srv.stale===true||!valid||now-stamp>staleSeconds*1000};
+  const counts={clients:players.length,players:0,spectators:0,unknown:0};
+  for(const p of players)counts[p.spectator===true?'spectators':p.spectator===false?'players':'unknown']++;
+  return {address,info,players,counts,updatedAt:valid?new Date(stamp).toISOString():null,stale:srv.stale===true||!valid||now-stamp>staleSeconds*1000};
 }
 
 async function boundedJSON(response) {
