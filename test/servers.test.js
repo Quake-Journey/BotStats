@@ -22,7 +22,7 @@ const listen=async app=>{const s=app.listen(0,'127.0.0.1');await once(s,'listeni
 const host=s=>'http://127.0.0.1:'+s.address().port;
 
 test('registry rejects duplicate identity/credentials, invalid access and accidental legacy credential reuse',async()=>{
-  for(const servers of [[spec('a'),spec('a')],[spec('a'),spec('b',{sourceToken:tokenA})],[spec('a',{q2tv:true})],[spec('a',{transport:'report',sourceToken:undefined})],[spec('a',{address:'http://localhost'})]])await assert.rejects(()=>onlineConfig({servers}));
+  for(const servers of [[spec('a'),spec('a')],[spec('a'),spec('b',{sourceToken:tokenA})],[spec('a',{q2tv:'yes'})],[spec('a',{transport:'report',sourceToken:undefined})],[spec('a',{address:'http://localhost'})]])await assert.rejects(()=>onlineConfig({servers}));
   const {sourceAuth}=await import('../src/servers.js');
   assert.throws(()=>sourceAuth([spec('a')],tokenA));
   const c=await onlineConfig({servers:[spec('a'),spec('b')]});assert.equal(c.defaultId,'a');
@@ -78,7 +78,7 @@ test('HTTP, downloads, bridge and WebSocket select the same allowed public serve
   upstream.get('/q2tv/http-file',(req,res)=>{requests.push(req.query.server);res.send('map');});
   const remote=await listen(upstream),sockets=new Set(),targets=[];
   remote.on('upgrade',(req,socket)=>{sockets.add(socket);socket.on('error',()=>{});socket.on('close',()=>sockets.delete(socket));targets.push(new URL(req.url,'http://localhost').searchParams.get('target'));const accept=createHash('sha1').update(req.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\nSec-WebSocket-Protocol: quake2\r\n\r\n');});
-  const app=express(),servers=[spec('a',{access:'public',q2tv:true,address:'alpha.example:27910'}),spec('b',{access:'public',q2tv:true,address:'beta.example:27920'}),spec('lan',{sourceToken:'fixture-lan-source-'.repeat(3)})];
+  const app=express(),servers=[spec('a',{access:'public',q2tv:true,address:'alpha.example:27910'}),spec('b',{access:'public',q2tv:true,address:'beta.example:27920'}),spec('lan',{q2tv:true,sourceToken:'fixture-lan-source-'.repeat(3)})];
   const bind=await attachOnline(app,'/botstats',{servers,tournamentOrigin:host(remote)}),server=await listen(app),close=bind(server),base=host(server)+'/botstats';
   app.use((err,req,res,next)=>res.status(err.status||500).json({error:err.message}));
   const handshake=(id,target)=>new Promise(resolve=>{const req=http.request(base+'/api/online/socket?'+new URLSearchParams({serverId:id,target}),{headers:{origin:host(server),connection:'Upgrade',upgrade:'websocket','sec-websocket-version':'13','sec-websocket-key':'dGhlIHNhbXBsZSBub25jZQ==','sec-websocket-protocol':'quake2'}});req.on('upgrade',(r,s)=>{s.destroy();resolve(true);});req.on('error',()=>resolve(false));req.end();});
@@ -101,6 +101,16 @@ test('HTTP, downloads, bridge and WebSocket select the same allowed public serve
     for(const headers of [{},{'x-ingest-token':tokenA},{'x-ingest-token':tokenB,'x-botstats-server':'a'}])assert.equal((await fetch(base+'/api/ingest/status',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify(body('a',Date.now()))})).status,401);
     assert.equal((await fetch(base+'/api/ingest/status',{method:'POST',headers:{'x-ingest-token':tokenA,'x-botstats-server':'a','content-type':'application/json'},body:JSON.stringify(body('b',Date.now()))})).status,400);
     const response=await fetch(base+'/api/online/servers');const publicJSON=await response.text();for(const secret of [tokenA,tokenB,host(remote)])assert.ok(!publicJSON.includes(secret));
+    // An internal reporter address may advertise an external Q2TV endpoint.
+    const at=Date.now(),post=payload=>fetch(base+'/api/ingest/status',{method:'POST',headers:{'x-ingest-token':servers[2].sourceToken,'x-botstats-server':'lan','content-type':'application/json'},body:JSON.stringify(payload)});
+    assert.equal((await post(body('lan',at,{info:{mapname:'omf',sv_public_address:'para.asuscomm.com:27910'}}))).status,200);
+    const live=await(await fetch(base+'/api/online?serverId=lan')).json();assert.equal(live.metadata.q2tv,true);assert.equal(Buffer.from(new URL(live.players.desktop,base).searchParams.get('s'),'base64').toString(),'para.asuscomm.com:27910');
+    assert.equal((await fetch(host(server)+live.players.desktop)).status,200);
+    const bridge=await(await fetch(base+'/api/online/player-bridge.js?serverId=lan')).text();assert.ok(bridge.includes('para.asuscomm.com:27910'));assert.ok(!bridge.includes(servers[2].address));
+    assert.equal(await handshake('lan','para.asuscomm.com:27910'),true);assert.equal(targets.at(-1),'para.asuscomm.com:27910');assert.equal(await handshake('lan',servers[2].address),false);
+    assert.equal((await fetch(base+'/q2tv/servers/lan/http-file?'+new URLSearchParams({server:'para.asuscomm.com:27910',path:'maps/omf.bsp'}))).status,200);assert.equal(requests.at(-1),'para.asuscomm.com:27910');
+    assert.equal((await fetch(base+'/q2tv/servers/lan/http-file?'+new URLSearchParams({server:servers[2].address,path:'maps/omf.bsp'}))).status,403);
+    assert.equal((await post(body('lan',at+1))).status,200);assert.equal((await(await fetch(base+'/api/online?serverId=lan')).json()).players,null);assert.equal(await handshake('lan','para.asuscomm.com:27910'),false);
   }finally{close();for(const s of sockets)s.destroy();await Promise.all([new Promise(r=>server.close(r)),new Promise(r=>remote.close(r))]);}
 });
 

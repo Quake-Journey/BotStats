@@ -30,10 +30,14 @@ export function playerBridge(base, address, id) {
 
 export async function attachOnline(app, base, options, dependencies={}) {
   const config=dependencies.config||await onlineConfig(options),directory=createServerDirectory(config,dependencies);
-  const select=req=>config.servers.find(s=>s.id===(req.query.serverId??config.defaultId));
+  // Every player leg must resolve the same server-owned public address: page,
+  // bridge, WebSocket and downloads. Browser-supplied targets remain disallowed.
+  const effective=s=>{if(!s)return null;const meta=directory.read(s.id).metadata;return {...s,address:meta.address,server:meta.address,access:meta.access,q2tv:meta.q2tv};};
+  const select=req=>effective(config.servers.find(s=>s.id===(req.query.serverId??config.defaultId)));
   const playerURL=(s,variant)=>base+'/'+variant+'/'+(s.legacy?'':'servers/'+encodeURIComponent(s.id)+'/')+'?s='+encodeURIComponent(Buffer.from(s.address).toString('base64'));
   const payload=s=>{
     const snapshot=directory.read(s.id);
+    s=effective(s);
     return {...snapshot,id:s.id,address:snapshot.metadata.address,pollSeconds:config.pollSeconds,version:serverModVersion(snapshot),
       players:s.q2tv?{desktop:playerURL(s,'q2tv'),mobile:playerURL(s,'q2tv-mobile')}:null};
   };

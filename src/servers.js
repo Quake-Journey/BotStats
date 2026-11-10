@@ -29,7 +29,7 @@ export async function onlineConfig(config={}) {
     if(!idPattern.test(s.id)||ids.has(s.id))throw Error('Invalid or duplicate server ID');ids.add(s.id);
     if(typeof s.name!=='string'||!s.name.trim()||s.name.length>120||!validAddress(s.address))throw Error('Invalid server metadata');
     if(!['public','lan','private'].includes(s.access)||!['monitor','report'].includes(s.transport))throw Error('Invalid server access or transport');
-    if(s.q2tv!==undefined&&typeof s.q2tv!=='boolean'||s.q2tv&&s.access!=='public')throw Error('Q2TV requires configured public access');
+    if(s.q2tv!==undefined&&typeof s.q2tv!=='boolean')throw Error('Invalid Q2TV setting');
     if(s.sourceToken!==undefined&&(typeof s.sourceToken!=='string'||s.sourceToken.length<32||s.sourceToken.startsWith('REPLACE_')||tokens.has(s.sourceToken)))throw Error('Invalid or duplicate source credential');
     if(s.sourceToken)tokens.add(s.sourceToken);
     if(s.transport==='report'&&!s.sourceToken)throw Error('Status reporter requires a source credential');
@@ -44,10 +44,12 @@ export async function onlineConfig(config={}) {
   return {...servers.find(s=>s.id===defaultId),servers,defaultId,pollSeconds:10};
 }
 
-// Advertised addresses affect public presentation, never polling/RCON/proxy targets.
+// Polling/RCON retain configured targets; Q2TV uses this public endpoint only
+// when explicitly enabled for the same authenticated/configured source.
 export const publicServer=(s,advertisedAddress)=>{
   const advertised=validAddress(advertisedAddress)?advertisedAddress:null;
-  return {id:s.id,name:s.name,address:advertised||s.address,access:advertised?'public':s.access,transport:s.transport,q2tv:s.q2tv===true,staleSeconds:s.staleSeconds};
+  const access=advertised?'public':s.access;
+  return {id:s.id,name:s.name,address:advertised||s.address,access,transport:s.transport,q2tv:s.q2tv===true&&access==='public',staleSeconds:s.staleSeconds};
 };
 export function sourceAuth(servers,legacyToken) {
   if(servers.some(s=>s.sourceToken&&equal(s.sourceToken,legacyToken)))throw Error('Source credential must differ from the legacy ingest credential');

@@ -52,9 +52,9 @@ the website rejects placeholders, shared source tokens, and reuse of its legacy
 `ingestToken`. Copy a token only through the operator's private configuration
 channel. Do not put it in Git, a command line, logs, screenshots or this package.
 
-`access` is `public`, `lan`, or `private`. Only `public` may enable Q2TV.
-`q2tv: true` is an explicit operator assertion that the configured Tournament
-gateway can reach that address and supports its spectator policy. No arbitrary
+`access` is `public`, `lan`, or `private`. `q2tv: true` permits viewing once the
+server has a public endpoint (registry or `sv_public_address`). It is an explicit
+operator assertion that Tournament can reach it and supports its spectator policy. No arbitrary
 address is accepted from the browser. MINIPC's LAN address is not a public
 connect endpoint. Copy-connect remains available on desktop; public Play and
 Q2TV require public access. The server can advertise its external endpoint as
@@ -78,8 +78,11 @@ matches are not rewritten. A temporary offline/stale observation retains the
 last advertised endpoint until a successful observation changes or clears it.
 
 Polling and RCON still use their original internal addresses. The cvar does
-not enable Q2TV or change its gateway/proxy allowlist: those remain separately
-configured and must be reachable from Tournament. Existing servers need no new
+not enable Q2TV by itself: set `q2tv: true` for that server in the website registry.
+Once enabled, the player page, bridge, WebSocket and file downloads all use its
+resolved public address. An internal address without a public advertisement
+does not enable viewing. Browser targets cannot override the resolved endpoint.
+The fixed Tournament gateway must be able to reach it. Existing servers need no new
 cvar. Website code and the reporter's `src/importer-status.js` must be updated
 to read the new field; preserve the importer's config, credentials and queue.
 
