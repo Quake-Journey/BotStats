@@ -12,17 +12,18 @@ filename. Names and fallback connection/access metadata come from this registry.
 The registry is bounded to 32 entries. Duplicate IDs or source credentials fail
 startup. Never reuse an ID for another server.
 
-Example fragment for the existing public server and LAN-only MINIPC:
+Example fragment for the two public servers. The website registry uses external
+connection addresses; MINIPC's importer can still poll its internal address.
 
 ```json
 {
   "online": {
-    "defaultServerId": "public-duel",
+    "defaultServerId": "default",
     "monitorOrigin": "http://127.0.0.1:3001",
     "tournamentOrigin": "http://127.0.0.1:3000",
     "servers": [
       {
-        "id": "public-duel",
+        "id": "default",
         "name": "Q2PRO-X · Public duel",
         "address": "91.227.18.67:27950",
         "access": "public",
@@ -32,10 +33,10 @@ Example fragment for the existing public server and LAN-only MINIPC:
       {
         "id": "minipc",
         "name": "MINIPC · OpenTDM-X",
-        "address": "10.10.1.51:27910",
-        "access": "lan",
+        "address": "para.asuscomm.com:27910",
+        "access": "public",
         "transport": "report",
-        "q2tv": false,
+        "q2tv": true,
         "sourceToken": "REPLACE_WITH_A_NEW_PRIVATE_RANDOM_TOKEN",
         "staleSeconds": 45
       }
@@ -55,10 +56,12 @@ channel. Do not put it in Git, a command line, logs, screenshots or this package
 `access` is `public`, `lan`, or `private`. `q2tv: true` permits viewing once the
 server has a public endpoint (registry or `sv_public_address`). It is an explicit
 operator assertion that Tournament can reach it and supports its spectator policy. No arbitrary
-address is accepted from the browser. MINIPC's LAN address is not a public
-connect endpoint. Copy-connect remains available on desktop; public Play and
-Q2TV require public access. The server can advertise its external endpoint as
-described below.
+address is accepted from the browser. Use `access: "lan"` only for an actual
+LAN-only server, not for a public server whose importer polls a private address.
+Copy-connect remains available on desktop; public Play and Q2TV require public
+access. The server can advertise its external endpoint as described below.
+Restart BotStats after saving the website configuration; editing JSON alone
+does not reload the running registry.
 
 ### Public address advertised by the game server
 
