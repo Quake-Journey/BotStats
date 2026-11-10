@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="./assets/profile-effects.css">
   <link rel="stylesheet" href="./assets/mobile.css">
   <link rel="stylesheet" href="./assets/match-items.css">
+  <link rel="stylesheet" href="./assets/server-menu.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content / К содержимому</a>
@@ -29,8 +30,7 @@
   <a href="https://t.me/Q2RTX" target="_blank" rel="noopener noreferrer">Telegram · Q2RTX ↗</a>
   <a href="https://t.me/Q2PROX" target="_blank" rel="noopener noreferrer">Community ↗</a>
   <a href="https://t.me/QuakeJourney" target="_blank" rel="noopener noreferrer">QuakeJourney ↗</a>
-  <a class="server-link" href="quake2://91.227.18.67:27950" title="connect 91.227.18.67:27950"><span data-i18n="gameServer">Игровой сервер</span> · 91.227.18.67:27950</a>
-  <button type="button" id="copy-server" data-i18n="copyConnect">Копировать connect</button>
+  <details class="server-menu" id="server-menu"><summary><span data-server-menu-title>Серверы</span><span data-server-menu-count hidden></span></summary><div class="server-menu-panel"><a href="./?view=online">Онлайн ↗</a></div></details>
 </nav>
   <div class="preferences">
     <label class="sr" for="theme" data-i18n="theme">Тема</label><select id="theme"><option value="auto">◐ Системная</option><option value="dark">☾ Тёмная</option><option value="light">☀ Светлая</option><option value="judgment">◉ Судный день</option></select>

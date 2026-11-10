@@ -1,6 +1,8 @@
 import {modeBadges,modesDetail} from './modes-ui.js';
 import {gameplayDetail,mountGameplayDetails} from './gameplay-ui.js';
 import {onlinePage,mountOnline} from './online-ui.js';
+import {mountServerMenu} from './server-menu.js';
+let serverMenu;
 import {profileMatchQuery,matchPagination} from './pagination.js';
 import {profileSummaryQuery,profileStanding} from './profile-rating.js';
 import {mountProfileAwardMotion} from './profile-award-motion.js';
@@ -139,7 +141,7 @@ const {url,link}=routes;
 function writeLocation(mode='replace'){history[mode+'State'](null,'',url({}, {hash:location.hash}));routes.sync(document);}
 async function api(endpoint){const r=await fetch(base+'/api/'+endpoint);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 function applyTheme(){document.documentElement.dataset.theme=theme==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;try{localStorage.setItem('botstats.theme',theme);}catch(e){}syncJudgment();}
-function preferences(){document.documentElement.lang=lang;document.title=(view==='about'?t('aboutRating')+' · ':view==='achievements'?t('achievements')+' · ':(view==='dynamics'||view==='charts')?t(view)+' · ':(defeatView()||view==='victims'||view==='players'||view==='bots'||view==='rating')?t(view)+' · ':'')+'BotStats · Q2PRO-X';routes.bind($('.brand'),{}, {home:true});routes.bind($('#about-link'),{view:'about',match:null,profile:null,kind:null,page:null});$('#about-link').setAttribute('aria-current',view==='about'?'page':'false');document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));$('#theme').value=theme;$('#language').value=lang;for(const o of $('#theme').options)o.textContent=({auto:'◐ ',dark:'☾ ',light:'☀ ',judgment:'◉ '}[o.value])+t(o.value);}
+function preferences(){serverMenu?.render();document.documentElement.lang=lang;document.title=(view==='about'?t('aboutRating')+' · ':view==='achievements'?t('achievements')+' · ':(view==='dynamics'||view==='charts')?t(view)+' · ':(defeatView()||view==='victims'||view==='players'||view==='bots'||view==='rating')?t(view)+' · ':'')+'BotStats · Q2PRO-X';routes.bind($('.brand'),{}, {home:true});routes.bind($('#about-link'),{view:'about',match:null,profile:null,kind:null,page:null});$('#about-link').setAttribute('aria-current',view==='about'?'page':'false');document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));$('#theme').value=theme;$('#language').value=lang;for(const o of $('#theme').options)o.textContent=({auto:'◐ ',dark:'☾ ',light:'☀ ',judgment:'◉ '}[o.value])+t(o.value);}
 $('#theme').onchange=e=>{theme=e.target.value;applyTheme();writeLocation();};
 $('#language').onchange=e=>{lang=e.target.value;try{localStorage.setItem('botstats.lang',lang);}catch(err){}writeLocation();preferences();render();};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(theme==='auto')applyTheme();});
@@ -370,7 +372,7 @@ async function changeSort(id,key,dir){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-sort-table]');if(b)changeSort(b.dataset.sortTable,b.dataset.sortKey,b.dataset.sortDir);});
 document.addEventListener('change',e=>{if(e.target.matches('[data-ranking-choice]')){params.set('ranking',e.target.value);params.delete('page');writeLocation('push');render();return;}const s=e.target.closest('[data-sort-select]');if(s)changeSort(s.dataset.sortSelect,s.value,s.selectedOptions[0].dataset.direction);});
-$('#copy-server').onclick=async()=>{const command='connect 91.227.18.67:27950';try{await navigator.clipboard.writeText(command);$('#copy-server').textContent=t('copied');}catch(e){window.prompt(t('copyConnect'),command);}};
+serverMenu=mountServerMenu($('#server-menu'),{base,getLang:()=>lang,link});
 $('#toggle-links').onclick=()=>{const open=$('#toggle-links').getAttribute('aria-expanded')!=='true';$('#toggle-links').setAttribute('aria-expanded',String(open));$('.header').classList.toggle('links-open',open);};
 
 let requestId=0;
@@ -551,8 +553,8 @@ async function refreshCharts(){
 }
 
 let renderEpoch=0,onlineCleanup=()=>{},profileAwardCleanup=()=>{};
-window.addEventListener('pagehide',()=>{onlineCleanup();homeCleanup();profileAwardCleanup();});
-window.addEventListener('pageshow',event=>{if(event.persisted)render();});
+window.addEventListener('pagehide',()=>{serverMenu?.destroy();onlineCleanup();homeCleanup();profileAwardCleanup();});
+window.addEventListener('pageshow',event=>{if(event.persisted){serverMenu=mountServerMenu($('#server-menu'),{base,getLang:()=>lang,link});render();}});
 async function render(){
   const section=profileSection(params);if(section){view=section;if(params.get('view')!==section){params.set('view',section);writeLocation();}}
   document.documentElement.dataset.page=isHome()?'home':'inner';
