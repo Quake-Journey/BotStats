@@ -112,9 +112,12 @@ test('authenticated ingest stores immutable source metadata, rejects a conflicti
   const make=async seed=>{const data=Buffer.from('MVD2'+seed),sha=createHash('sha256').update(data).digest('hex'),file=config.storageDir+'/'+seed+'.mvd2';await writeFile(file,data);return {file,manifest:{schemaVersion:1,parserVersion:'0.3.1',demo:{sha256:sha,size:data.length,originalName:seed+'.mvd2',recordedAt:null,dateSource:null},matches:[{id:sha+'-0-0',map:'omf',status:'completed',winnerIndex:0,statsComplete:false,startedAt:null,source:{id:'spoofed'},participants:[{name:'Human',isBot:false,score:2,stats:null},{name:'Bot',isBot:true,score:0,stats:null}]}]}};};
   try{
     const fresh=await make('new-source');const a={...config,apiUrl,serverId:'a',ingestToken:tokenA},b={...a,serverId:'b',ingestToken:tokenB};
+    const advertised=await fetch(apiUrl+'/api/ingest/status',{method:'POST',headers:{'content-type':'application/json','x-ingest-token':tokenA,'x-botstats-server':'a'},body:JSON.stringify(body('a',Date.now(),{info:{mapname:'omf',sv_public_address:'para.asuscomm.com:27910'}}))});assert.equal(advertised.status,200);
+    const live=await(await fetch(apiUrl+'/api/online?serverId=a')).json();assert.equal(live.address,'para.asuscomm.com:27910');assert.equal(live.metadata.address,live.address);assert.equal(live.server.address,live.address);assert.equal(live.players,null,'Advertising must not enable Q2TV');
     assert.equal((await sendManifest(a,fresh.file,fresh.manifest)).duplicate,false);
     assert.equal((await sendManifest(a,fresh.file,fresh.manifest)).duplicate,true);
     assert.equal((await store.match(fresh.manifest.matches[0].id)).source.id,'a');
+    assert.equal((await store.match(fresh.manifest.matches[0].id)).source.address,'para.asuscomm.com:27910');
     await assert.rejects(()=>sendManifest(b,fresh.file,fresh.manifest),/HTTP 409/);
     const legacy=await make('old-source');await sendManifest({...config,apiUrl},legacy.file,legacy.manifest);
     assert.equal((await store.match(legacy.manifest.matches[0].id)).source,null);

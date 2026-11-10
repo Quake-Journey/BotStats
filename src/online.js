@@ -34,7 +34,7 @@ export async function attachOnline(app, base, options, dependencies={}) {
   const playerURL=(s,variant)=>base+'/'+variant+'/'+(s.legacy?'':'servers/'+encodeURIComponent(s.id)+'/')+'?s='+encodeURIComponent(Buffer.from(s.address).toString('base64'));
   const payload=s=>{
     const snapshot=directory.read(s.id);
-    return {...snapshot,id:s.id,address:s.address,pollSeconds:config.pollSeconds,version:serverModVersion(snapshot),
+    return {...snapshot,id:s.id,address:snapshot.metadata.address,pollSeconds:config.pollSeconds,version:serverModVersion(snapshot),
       players:s.q2tv?{desktop:playerURL(s,'q2tv'),mobile:playerURL(s,'q2tv-mobile')}:null};
   };
   app.get(base+'/api/online/servers',(req,res)=>res.set('Cache-Control','no-store').json({defaultServerId:config.defaultId,servers:config.servers.map(payload)}));
@@ -114,5 +114,6 @@ export async function attachOnline(app, base, options, dependencies={}) {
     return closeAll;
   };
   bindSockets.close=()=>directory.close();
+  bindSockets.metadata=id=>directory.read(id)?.metadata||null;
   return bindSockets;
 }

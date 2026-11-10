@@ -44,7 +44,11 @@ export async function onlineConfig(config={}) {
   return {...servers.find(s=>s.id===defaultId),servers,defaultId,pollSeconds:10};
 }
 
-export const publicServer=s=>({id:s.id,name:s.name,address:s.address,access:s.access,transport:s.transport,q2tv:s.q2tv===true,staleSeconds:s.staleSeconds});
+// Advertised addresses affect public presentation, never polling/RCON/proxy targets.
+export const publicServer=(s,advertisedAddress)=>{
+  const advertised=validAddress(advertisedAddress)?advertisedAddress:null;
+  return {id:s.id,name:s.name,address:advertised||s.address,access:advertised?'public':s.access,transport:s.transport,q2tv:s.q2tv===true,staleSeconds:s.staleSeconds};
+};
 export function sourceAuth(servers,legacyToken) {
   if(servers.some(s=>s.sourceToken&&equal(s.sourceToken,legacyToken)))throw Error('Source credential must differ from the legacy ingest credential');
   return (req,res,next)=>{
@@ -101,10 +105,10 @@ const badReport=()=>Object.assign(Error('Invalid status report'),{status:400});
 export function createServerDirectory(config,{now=Date.now,fetchImpl=fetch,modeRead,pollMs=10000}={}) {
   const entries=new Map();let stopped=false;
   for(const server of config.servers){
-    const entry={config:server,snapshot:{server:null,state:'missing',checkedAt:null,modes:noModes()},receivedAt:null,pending:null,timer:null};entries.set(server.id,entry);
+    const entry={config:server,publicAddress:null,snapshot:{server:null,state:'missing',checkedAt:null,modes:noModes()},receivedAt:null,pending:null,timer:null};entries.set(server.id,entry);
     if(server.transport==='monitor'){
       const status=createMonitor(server,{now,fetchImpl,cacheMs:0}),modes=createModeMonitor(server,{now,...(modeRead?{read:modeRead}:{}),cacheMs:0});
-      const poll=()=>{entry.pending=Promise.all([status(),modes()]).then(([snapshot,currentModes])=>{entry.snapshot={...snapshot,modes:currentModes};}).finally(()=>{entry.pending=null;if(!stopped){entry.timer=setTimeout(poll,pollMs);entry.timer.unref?.();}});};poll();
+      const poll=()=>{entry.pending=Promise.all([status(),modes()]).then(([snapshot,currentModes])=>{entry.snapshot={...snapshot,modes:currentModes};if(snapshot.state==='online')entry.publicAddress=snapshot.server?.info.sv_public_address;}).finally(()=>{entry.pending=null;if(!stopped){entry.timer=setTimeout(poll,pollMs);entry.timer.unref?.();}});};poll();
     }
   }
   function read(id){
@@ -113,7 +117,8 @@ export function createServerDirectory(config,{now=Date.now,fetchImpl=fetch,modeR
     const expired=snapshot.checkedAt&&now()-Date.parse(snapshot.checkedAt)>e.config.staleSeconds*1000;
     if(expired)snapshot={...snapshot,state:'stale',server:snapshot.server?{...snapshot.server,stale:true}:null};
     if(snapshot.state!=='online')snapshot={...snapshot,modes:noModes()};
-    return {...snapshot,metadata:publicServer(e.config),receivedAt:e.receivedAt};
+    const metadata=publicServer(e.config,e.publicAddress);
+    return {...snapshot,server:snapshot.server?{...snapshot.server,address:metadata.address}:null,metadata,receivedAt:e.receivedAt};
   }
   function report(id,body){
     const e=entries.get(id);
@@ -131,6 +136,9 @@ export function createServerDirectory(config,{now=Date.now,fetchImpl=fetch,modeR
     const server=body.state==='online'?normalizeServer({servers:[{server:e.config.address,serverInfo:body.info,serverPlayers:body.players.map(p=>({...p,spectator:p.spectator??null})),lastUpdated:checkedAt}]},e.config.address,now(),e.config.staleSeconds):null;
     e.receivedAt=new Date(now()).toISOString();
     e.snapshot={server,state:body.state,checkedAt,modes:{...body.modes,state:body.modes.hardcore!==null&&body.modes.training!==null?'current':'unavailable',checkedAt}};
+    // A failed observation must not replace a known public address with the LAN
+    // polling address. A successful response without the cvar restores fallback.
+    if(body.state==='online')e.publicAddress=body.info.sv_public_address;
     return {accepted:true,serverId:id,receivedAt:e.receivedAt};
   }
   return {read,report,list:()=>config.servers.map(s=>read(s.id)),ready:async id=>{await entries.get(id)?.pending;return read(id);},close:()=>{stopped=true;for(const e of entries.values())clearTimeout(e.timer);}};

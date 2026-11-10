@@ -12,7 +12,10 @@ export function parseStatusPacket(packet){
   if(!line.startsWith('\\'))throw Error('Invalid game status info');
   const parts=line.slice(1).split('\\'),info={};
   if(parts.length%2)throw Error('Invalid game status fields');
-  for(let i=0;i<parts.length;i+=2)if(infoKeys.has(parts[i]))info[parts[i]]=safeText(parts[i+1]);
+  for(let i=0;i<parts.length;i+=2){
+    if(parts[i]==='sv_public_address'){if(validAddress(parts[i+1]))info.sv_public_address=parts[i+1];}
+    else if(infoKeys.has(parts[i]))info[parts[i]]=safeText(parts[i+1]);
+  }
   if(!info.mapname&&!info.map)throw Error('Missing game status map');
   const players=[];
   for(const row of rows){

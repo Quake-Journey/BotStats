@@ -14,6 +14,12 @@ const config={database,mongoUri:'mongodb://127.0.0.1:27017',ingestToken:'header-
 const {app,store,bindOnlineSockets}=await createService(config),server=app.listen(0,'127.0.0.1');await once(server,'listening');
 const close=bindOnlineSockets(server),base='http://127.0.0.1:'+server.address().port+'/botstats';
 const results=[];
+let reportStamp=Date.now()-1000;
+async function advertise(address){
+  reportStamp=Math.max(reportStamp+1,Date.now());
+  const body={schemaVersion:1,serverId:'minipc',observedAt:new Date(reportStamp).toISOString(),state:'online',info:{mapname:'q2duel5',...(address?{sv_public_address:address}:{})},players:[],modes:{hardcore:0,training:1}};
+  const response=await fetch(base+'/api/ingest/status',{method:'POST',headers:{'content-type':'application/json','x-botstats-server':'minipc','x-ingest-token':sources[1].sourceToken},body:JSON.stringify(body)});assert.equal(response.status,200);
+}
 async function openMenu(page){
   if(await page.locator('#toggle-links').isVisible()&&await page.locator('#toggle-links').getAttribute('aria-expanded')!=='true')await page.locator('#toggle-links').click();
   if(!await page.locator('#server-menu').evaluate(el=>el.open))await page.locator('#server-menu>summary').click();
@@ -76,6 +82,26 @@ try{
         await page.locator('.brand').focus();await page.locator('.header').click({position:{x:10,y:10}});assert.equal(await page.locator('#server-menu').evaluate(el=>el.open),false);
         await page.close();results.push({engine,lifecycle:'single list, refresh, failure, retry, removal, copy, route isolation passed'});
       }
+      await advertise('para.asuscomm.com:27910');
+      for(const width of [320,1440])for(const lang of ['ru','en']){
+        const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+        await page.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{window.copied=value;}}}));
+        await page.goto(base+'/?view=online&onlineServer=minipc&onlineRefresh=0&theme=judgment&lang='+lang);await page.waitForSelector('#online-server-select');
+        assert.equal(await page.locator('#online-server-select').inputValue(),'minipc');
+        assert.ok((await page.locator('.online-address').innerText()).includes('para.asuscomm.com:27910'));
+        assert.ok(!(await page.locator('#online-server').innerText()).includes('10.10.1.51'));
+        assert.equal(await page.locator('#online-watch').isDisabled(),true,'Public advertisement does not enable Q2TV');
+        if(width>800){await page.locator('#online-copy').click();assert.equal(await page.evaluate(()=>window.copied),'connect para.asuscomm.com:27910');}
+        await openMenu(page);
+        assert.equal(await page.locator('[data-server-entry=minipc] .server-menu-address').innerText(),'para.asuscomm.com:27910');
+        assert.equal(await page.locator('[data-server-entry=minipc] .server-menu-connect a').getAttribute('href'),'quake2://para.asuscomm.com:27910');
+        assert.ok(!(await page.locator('[data-server-entry=minipc]').innerText()).includes('VPN'));
+        if(width>800){await page.locator('[data-server-entry=minipc] [data-copy-address]').click();assert.equal(await page.evaluate(()=>window.copied),'connect para.asuscomm.com:27910');}
+        assert.deepEqual(await geometry(page),{overflow:false,outside:[],overlaps:[]});assert.deepEqual(errors,[]);
+        if(engine==='chromium'&&lang==='ru')await page.screenshot({path:evidence+`/public-address-${width}.png`});
+        results.push({engine,width,lang,advertisedAddress:'pass',onlineAndHeaderCopy:'pass',geometry:'pass'});await page.close();
+      }
+      await advertise(null);
     }finally{await browser.close();}
   }
   await writeFile(evidence+'/results.json',JSON.stringify({passed:true,results},null,2));console.log(JSON.stringify({passed:true,cases:results.length,evidence}));

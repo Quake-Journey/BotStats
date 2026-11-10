@@ -8,7 +8,7 @@ Existing single-server installations continue to work with their current JSON.
 
 Add an `online.servers` registry to the private website configuration. IDs are
 permanent lowercase identifiers, independent of address, hostname, NAT or demo
-filename. Names and connection/access metadata come only from this registry.
+filename. Names and fallback connection/access metadata come from this registry.
 The registry is bounded to 32 entries. Duplicate IDs or source credentials fail
 startup. Never reuse an ID for another server.
 
@@ -56,7 +56,32 @@ channel. Do not put it in Git, a command line, logs, screenshots or this package
 `q2tv: true` is an explicit operator assertion that the configured Tournament
 gateway can reach that address and supports its spectator policy. No arbitrary
 address is accepted from the browser. MINIPC's LAN address is not a public
-connect endpoint; its UI has no public Play/copy-connect/Q2TV action.
+connect endpoint. Copy-connect remains available on desktop; public Play and
+Q2TV require public access. The server can advertise its external endpoint as
+described below.
+
+### Public address advertised by the game server
+
+Set a serverinfo cvar in the **game server's** persistent config:
+
+```text
+set sv_public_address "para.asuscomm.com:27910" s
+```
+
+The `s` flag includes it in ordinary UDP status. The importer forwards this
+one validated public field; no additional RCON request is needed. Both monitor
+and reporter sources prefer a valid `hostname:port` in `sv_public_address` for
+header/Online display, desktop connect commands and new match source metadata.
+That explicit advertisement labels the endpoint public. A missing, empty or
+invalid value uses the existing registry address/access unchanged. Historical
+matches are not rewritten. A temporary offline/stale observation retains the
+last advertised endpoint until a successful observation changes or clears it.
+
+Polling and RCON still use their original internal addresses. The cvar does
+not enable Q2TV or change its gateway/proxy allowlist: those remain separately
+configured and must be reachable from Tournament. Existing servers need no new
+cvar. Website code and the reporter's `src/importer-status.js` must be updated
+to read the new field; preserve the importer's config, credentials and queue.
 
 Explicit registries do not inherit a global RCON password or Tournament `.env`.
 If the existing public server already uses live Hardcore/Training reporting,

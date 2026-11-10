@@ -11,7 +11,7 @@ import { openStore } from './store.js';
 import { loadAssets } from './assets.js';
 import { completeScoreHistory } from '../public/score-history.js';
 import { attachOnline } from './online.js';
-import {onlineConfig,sourceAuth,publicServer} from './servers.js';
+import {onlineConfig,sourceAuth} from './servers.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const hashPattern=/^[a-f0-9]{64}$/;
@@ -62,7 +62,7 @@ export async function createService(config) {
       const m=req.body;
       if(!validate(m)||m.matches.some(x=>!x.id.startsWith(m.demo.sha256+'-')||x.participants.filter(p=>p.isBot).length!==1)||new Set(m.matches.map(x=>x.id)).size!==m.matches.length)return res.status(400).json({error:'Invalid manifest',details:validate.errors?.[0]?.message});
       if(m.sourceServerId!==undefined&&m.sourceServerId!==req.sourceServer?.id)return res.status(403).json({error:'Source identity does not match credentials'});
-      m.source=req.sourceServer?publicServer(req.sourceServer):null;
+      m.source=req.sourceServer?bindOnlineSockets.metadata(req.sourceServer.id):null;
       delete m.sourceServerId;
       for(const match of m.matches){delete match.source;delete match.sourceServerId;}
       const file=path.join(demoRoot,m.demo.sha256+'.mvd2'),info=await stat(file).catch(()=>null);
