@@ -1,0 +1,37 @@
+/* QuakeJourney support: static, local assets only; no third-party requests. */
+.qj-support {
+  display:flex; align-items:center; gap:22px; min-width:0;
+  padding:22px 24px; border:1px solid var(--qj-border); border-left:4px solid #ed7839;
+  border-radius:12px; background:linear-gradient(110deg,#ed783915,transparent 70%),var(--qj-bg);
+  color:var(--qj-text); text-align:left; box-sizing:border-box;
+}
+.qj-support-brand { flex:none; color:var(--qj-brand); font-size:23px; font-weight:900; letter-spacing:-.04em; line-height:1; }
+.qj-support-copy { flex:1; min-width:0; }
+.qj-support .qj-support-title { margin:0; color:var(--qj-text); font:700 18px/1.35 'Segoe UI',Arial,sans-serif; letter-spacing:0; text-transform:none; }
+.qj-support .qj-support-description { margin:6px 0 0; color:var(--qj-muted); font:400 14px/1.55 'Segoe UI',Arial,sans-serif; overflow-wrap:anywhere; }
+.qj-support .qj-support-link {
+  display:inline-flex; flex:none; align-items:center; justify-content:center; gap:10px;
+  max-width:100%; padding:12px 18px; box-sizing:border-box; min-height:44px;
+  border:1px solid #ffac76; border-radius:7px; background:#f58a4d; color:#211108;
+  font:700 14px/1.4 'Segoe UI',Arial,sans-serif; text-decoration:none; text-align:center;
+  box-shadow:0 3px 0 #8c3b1b; transition:transform .16s ease,background .16s ease,box-shadow .16s ease;
+}
+.qj-support .qj-support-link:hover { color:#211108; background:#ffac76; transform:translateY(-2px); box-shadow:0 5px 0 #8c3b1b; }
+.qj-support .qj-support-link:focus-visible { outline:3px solid var(--qj-text); outline-offset:4px; }
+@media(max-width:850px) {
+  .qj-support { flex-wrap:wrap; gap:16px; }
+  .qj-support-copy { flex-basis:calc(100% - 110px); }
+  .qj-support .qj-support-link { margin-left:auto; }
+}
+@media(max-width:480px) {
+  .qj-support { padding:18px 16px; gap:12px; }
+  .qj-support-brand { font-size:19px; }
+  .qj-support-copy { flex-basis:100%; }
+  .qj-support .qj-support-link { width:100%; margin-left:0; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .qj-support .qj-support-link { transition:none; }
+  .qj-support .qj-support-link:hover { transform:none; }
+}
+
+.botstats-support { margin:24px 0 4px; --qj-bg:var(--surface); --qj-border:var(--border); --qj-text:var(--text); --qj-muted:var(--muted); --qj-brand:var(--orange); }
