@@ -166,14 +166,24 @@ MINIPC as Missing until that separate migration is approved and completed.
   labelled as old and live modes become Unknown. The importer merely running,
   a successful import, or the last recorded match is never proof of Online.
 - Ordinary Quake II UDP status does not identify spectator membership reliably.
-  The reporter preserves real names/scores/pings and marks that role Unknown;
-  it does not infer spectators from zero score. Explicit roles, when supplied
-  by a monitor or compatible source report, are displayed separately.
+  With the existing private RCON credential, both the website monitor and the
+  importer now read actual membership using `status`, `sv otx intermission`,
+  then `status` again. The middle command is an existing **read-only** state dump;
+  despite its name it never starts intermission or changes a match. Its explicit
+  `team` field distinguishes playing clients (including dead clients awaiting
+  respawn) from spectators. Slot numbers are converted from the mod's one-based
+  edict IDs to the engine's zero-based client IDs. Both surrounding status reads
+  must agree on map and slot identity. Ambiguous truncated names, reconnects,
+  missing role rows, unsupported commands and failures remain Unknown.
+  Polling is bounded and runs once per source cycle, not per site visitor. Raw
+  RCON responses, addresses and credentials never enter the public report. The
+  parser does not infer spectators from zero score, names or ping. Existing
+  explicitly reported roles remain supported when RCON is unavailable.
   The same rule applies to monitor responses: numeric, absent, invalid or
   sentinel scores do not establish a role. A boolean `spectator` is authoritative;
   the monitor's exact `score: "Spectator"` marker is accepted when that field is
-  absent. An explicit `spectator: null` stays Unknown. Names and ping are never
-  role evidence. No game/mod changes or new RCON commands are required.
+  absent. An explicit `spectator: null` stays Unknown unless the live membership
+  read resolves it. No game/mod changes or new RCON commands are required.
 - Each available `server` snapshot includes `counts` with `clients`, `players`,
   `spectators`, and `unknown`. The last three add up to `clients`. The UI labels
   the overall total Connected and separately labels each role count, including

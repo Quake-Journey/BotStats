@@ -2,6 +2,7 @@ import {readFile} from 'node:fs/promises';
 import {parseEnv} from 'node:util';
 import {timingSafeEqual} from 'node:crypto';
 import {createModeMonitor} from './online-modes.js';
+import {readLiveRoster,applyLiveRoles} from './online-roster.js';
 
 export const DEFAULT_SERVER = '91.227.18.67:27950';
 export const safeText = value => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 300);
@@ -104,13 +105,20 @@ export function createMonitor(config,{fetchImpl=fetch,now=Date.now,cacheMs=5000}
 
 const noModes=()=>({hardcore:null,training:null,state:'unavailable',checkedAt:null});
 const badReport=()=>Object.assign(Error('Invalid status report'),{status:400});
-export function createServerDirectory(config,{now=Date.now,fetchImpl=fetch,modeRead,pollMs=10000}={}) {
+export function createServerDirectory(config,{now=Date.now,fetchImpl=fetch,modeRead,rosterRead=readLiveRoster,pollMs=10000}={}) {
   const entries=new Map();let stopped=false;
   for(const server of config.servers){
     const entry={config:server,publicAddress:null,snapshot:{server:null,state:'missing',checkedAt:null,modes:noModes()},receivedAt:null,pending:null,timer:null};entries.set(server.id,entry);
     if(server.transport==='monitor'){
       const status=createMonitor(server,{now,fetchImpl,cacheMs:0}),modes=createModeMonitor(server,{now,...(modeRead?{read:modeRead}:{}),cacheMs:0});
-      const poll=()=>{entry.pending=Promise.all([status(),modes()]).then(([snapshot,currentModes])=>{entry.snapshot={...snapshot,modes:currentModes};if(snapshot.state==='online')entry.publicAddress=snapshot.server?.info.sv_public_address;}).finally(()=>{entry.pending=null;if(!stopped){entry.timer=setTimeout(poll,pollMs);entry.timer.unref?.();}});};poll();
+      const poll=()=>{entry.pending=Promise.all([status(),modes(),Promise.resolve().then(()=>rosterRead(server)).catch(()=>null)]).then(([snapshot,currentModes,roster])=>{
+        if(snapshot.state==='online'&&snapshot.server){
+          const players=applyLiveRoles(snapshot.server.players,snapshot.server.info.mapname||snapshot.server.info.map,roster);
+          const counts={clients:players.length,players:0,spectators:0,unknown:0};for(const p of players)counts[p.spectator===true?'spectators':p.spectator===false?'players':'unknown']++;
+          snapshot={...snapshot,server:{...snapshot.server,players,counts}};
+        }
+        entry.snapshot={...snapshot,modes:currentModes};if(snapshot.state==='online')entry.publicAddress=snapshot.server?.info.sv_public_address;
+      }).finally(()=>{entry.pending=null;if(!stopped){entry.timer=setTimeout(poll,pollMs);entry.timer.unref?.();}});};poll();
     }
   }
   function read(id){

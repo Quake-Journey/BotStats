@@ -1,6 +1,7 @@
 import dgram from 'node:dgram';
 import {validAddress,safeText} from './servers.js';
 import {readLiveModes} from './online-modes.js';
+import {readLiveRoster,applyLiveRoles} from './online-roster.js';
 
 const unknownModes=()=>({hardcore:null,training:null});
 // Public Quake II status response, not RCON output. Only public fields cross
@@ -51,10 +52,12 @@ export function ingestBase(config){
   if(url.username||url.password||url.search||url.hash||url.protocol!=='https:'&&!(['127.0.0.1','localhost','[::1]'].includes(url.hostname)&&url.protocol==='http:'))throw Error('Remote ingest requires HTTPS');
   return base;
 }
-export async function reportStatus(config,{query=queryGameStatus,readModes=readLiveModes,fetchImpl=fetch,now=Date.now}={}){
+export async function reportStatus(config,{query=queryGameStatus,readModes=readLiveModes,readRoster=readLiveRoster,fetchImpl=fetch,now=Date.now}={}){
   if(!config.serverId||!validAddress(config.status?.address))throw Error('Status reporter requires serverId and status.address');
   const headers=importerHeaders(config),base=ingestBase(config);
-  const [snapshot,modes]=await Promise.all([query(config.status.address),readModes({server:config.status.address,rconPassword:config.status.rconPassword})]);
+  const liveConfig={server:config.status.address,rconPassword:config.status.rconPassword};
+  const [snapshot,modes,roster]=await Promise.all([query(config.status.address),readModes(liveConfig),Promise.resolve().then(()=>readRoster(liveConfig)).catch(()=>null)]);
+  if(snapshot.state==='online')snapshot.players=applyLiveRoles(snapshot.players,snapshot.info.mapname||snapshot.info.map,roster);
   const body={schemaVersion:1,serverId:config.serverId,observedAt:new Date(now()).toISOString(),...snapshot,modes:snapshot.state==='online'?modes:unknownModes()};
   const r=await fetchImpl(base+'/api/ingest/status',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(7000),redirect:'error'});
   if(!r.ok)throw Error('Status report HTTP '+r.status);

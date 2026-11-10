@@ -83,6 +83,8 @@ try{
         for(const [index,sample] of roleCases.entries()){
           await report('minipc',{players:sample.players});await reload(page);
           for(const [role,count] of Object.entries(sample.counts))assert.equal(await page.locator('[data-online-role='+role+']').count(),count);
+          for(const label of await page.locator('[data-online-role=player] .online-name small').all())assert.equal(await label.innerText(),lang==='ru'?'В игре':'Playing');
+          for(const label of await page.locator('[data-online-role=spectator] .online-name small').all())assert.equal(await label.innerText(),lang==='ru'?'Зритель':'Spectator');
           for(const [key,count] of [['players',sample.counts.player],['spectators',sample.counts.spectator],['unknown',sample.counts.unknown]]){
             const label=page.locator('[data-roster-count='+key+'] b');if(key==='unknown'&&!count)assert.equal(await label.count(),0);else assert.equal(await label.innerText(),String(count));
           }

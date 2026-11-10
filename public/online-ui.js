@@ -7,8 +7,8 @@ const strings={
 Object.assign(strings.ru,{unknownRole:'Роль не передана',servers:'Сервер',offline:'Сервер не отвечает на запрос',public:'Публичный доступ',lan:'Локальная сеть / VPN',private:'Закрытый доступ',noTV:'Q2TV для этого сервера не настроен',noLiveTV:'Q2TV доступен при свежем статусе онлайн',noConnect:'Публичное подключение недоступно',received:'Отчёт получен',missing:'Статус ещё не получен',unavailable:'Не удалось проверить статус'});
 Object.assign(strings.en,{unknownRole:'Role not reported',servers:'Server',offline:'No response from the game server',public:'Public access',lan:'Local network / VPN',private:'Private access',noTV:'Q2TV is not configured for this server',noLiveTV:'Q2TV requires a fresh online status',noConnect:'Public connection unavailable',received:'Report received',missing:'No status received yet',unavailable:'Could not verify status'});
 
-Object.assign(strings.ru,{name:'Участник',connections:'Подключено',playing:'Игроки',spectators:'Зрители',unknownRole:'Роль неизвестна'});
-Object.assign(strings.en,{name:'Name',players:'Server roster',connections:'Connected',playing:'Players',spectators:'Spectators',unknownRole:'Role unknown'});
+Object.assign(strings.ru,{name:'Участник',connections:'Подключено',playing:'Игроки',inGame:'В игре',spectators:'Зрители',unknownRole:'Роль неизвестна'});
+Object.assign(strings.en,{name:'Name',players:'Server roster',connections:'Connected',playing:'Players',inGame:'Playing',spectators:'Spectators',unknownRole:'Role unknown'});
 
 export function rosterCounts(players) {
   const counts={clients:players.length,players:0,spectators:0,unknown:0};
@@ -99,7 +99,7 @@ export function mountOnline(root,{base,lang,params,onState}) {
     const roleOrder=p=>p.spectator===false?0:p.spectator===true?1:2;
     const rows=[...s.players].sort((a,b)=>roleOrder(a)-roleOrder(b)||compare(a,b)).map(p=>{
       const d=changes.get(p.name)||0;
-      return `<tr data-online-role="${p.spectator===true?'spectator':p.spectator===false?'player':'unknown'}"><td class="online-name">${esc(p.name)}${p.spectator===true?`<small>${t.spectator}</small>`:p.spectator!==false?`<small>${t.unknownRole}</small>`:''}</td><td class="online-score">${p.score??'—'}${d?`<small class="online-delta ${d>0?'up':'down'}" title="${t.delta}">${d>0?'▲ +':'▼ '}${d}</small>`:''}</td><td class="online-ping ${p.ping!==null&&p.ping<60?'low':''}">${p.ping??'—'}</td></tr>`;
+      return `<tr data-online-role="${p.spectator===true?'spectator':p.spectator===false?'player':'unknown'}"><td class="online-name">${esc(p.name)}<small>${p.spectator===true?t.spectator:p.spectator===false?t.inGame:t.unknownRole}</small></td><td class="online-score">${p.score??'—'}${d?`<small class="online-delta ${d>0?'up':'down'}" title="${t.delta}">${d>0?'▲ +':'▼ '}${d}</small>`:''}</td><td class="online-ping ${p.ping!==null&&p.ping<60?'low':''}">${p.ping??'—'}</td></tr>`;
     }).join('');
     const skip=new Set(['hostname','sv_hostname','mapname','map','maxclients','max_clients','gamename','serverIp','serverPort','time_remaining','sv_hardcore','sv_training','sv_bots_training_mode']);
     const entries=Object.entries(inf).filter(([k])=>!skip.has(k)).sort(([a],[b])=>a.localeCompare(b));
