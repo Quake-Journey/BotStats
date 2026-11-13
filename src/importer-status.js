@@ -6,7 +6,8 @@ import {readLiveRoster,applyLiveRoles} from './online-roster.js';
 const unknownModes=()=>({hardcore:null,training:null});
 // Public Quake II status response, not RCON output. Only public fields cross
 // the reporter boundary; arbitrary cvars and credentials are never forwarded.
-const infoKeys=new Set(['hostname','sv_hostname','mapname','map','maxclients','max_clients','gamename','game','version','otx_version','mod_version','time_remaining','timelimit','fraglimit','deathmatch','teamplay','gamedir']);
+const infoKeys=new Set(['hostname','sv_hostname','mapname','map','maxclients','max_clients','gamename','game','version','otx_version','mod_version','time_remaining','timelimit','fraglimit','deathmatch','teamplay','gamedir',
+  'sv_allow_timers','sv_donation_address','sv_stats_info','otx_bot_pa','sv_hardcore','sv_bots_training_mode']);
 export function parseStatusPacket(packet){
   if(packet.length>65507||packet.length<11||packet.readInt32LE(0)!==-1||packet.toString('ascii',4,10)!=='print\n')throw Error('Invalid game status response');
   const [line,...rows]=packet.toString('latin1',10).replace(/\0+$/,'').split('\n');
