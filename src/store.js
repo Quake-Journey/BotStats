@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
 import {computeAchievements,publicAchievements,achievementDetail} from './achievements.js';
+import {activateProgressSet} from './progress-achievements.js';
 import {buildDynamics} from './dynamics.js';
 import {buildChart,chartTypes,chartProjection,chartSelection,chartCacheKey,makeChartCache} from './charts.js';
 import {buildHome,homeProjection} from './home.js';
@@ -147,6 +148,7 @@ export async function openStore(config) {
   await client.connect();const db=client.db(config.database),demos=db.collection('demos');
   await demos.createIndex({'matches.startedAt':-1});await demos.createIndex({'matches.map':1});
   await demos.createIndex({'matches.participants.name':1});
+  const progressActivatedAt=await activateProgressSet(db.collection('achievement_sets'));
   const base=()=>[{$unwind:'$matches'},{$replaceRoot:{newRoot:{$mergeObjects:['$matches',{demo:'$demo',parserVersion:'$parserVersion',source:{$ifNull:['$source',null]}}]}}},...matchResultStages(),...matchDurationStages()];
   let awardRevision=0,awardCache=null,awardPending=null;
   const chartCache=makeChartCache(),homeCache=makeChartCache({limit:8});
@@ -166,7 +168,7 @@ export async function openStore(config) {
     if(awardPending?.revision===revision)return awardPending.promise;
     const promise=(async()=>{
       const rows=await demos.aggregate([...base(),{$project:{demo:0,stateHistory:0,settingsChanges:0,events:0,recordedSettings:0,gameplay:0}}]).toArray();
-      const value=computeAchievements(rows);
+      const value=computeAchievements(rows,{progressActivatedAt});
       if(awardRevision===revision)awardCache={revision,at:Date.now(),value};
       return value;
     })();

@@ -31,11 +31,14 @@ deploy/
 docs/*
 !docs/SECURITY.md
 !docs/DECODER.md
+!docs/ACHIEVEMENTS.md
 tools/*
 !tools/run-production.mjs
 !tools/Install-Autostart.ps1
 !tools/check-public-tree.py
 !tools/generate-bot-awards.mjs
+!tools/build-progress-icons.mjs
+!tools/audit-progress-achievements.mjs
 
 # Python caches
 __pycache__/

@@ -2,9 +2,10 @@ import {botDifficulty,victoryDuration} from '../public/rating.js';
 import {normalizeMatchResult} from '../public/match-result.js';
 import {sortRows} from '../public/sort.js';
 import {BOT_DEFINITIONS,computeBotAchievements} from './bot-achievements.js';
+import {PROGRESS_DEFINITIONS,computeProgressAchievements} from './progress-achievements.js';
 
 export const MAP_POOL=Object.freeze(['q2duel5','ztn2dm3','q3t2']);
-export const ACHIEVEMENT_VERSION='achievements-v3-bots';
+export const ACHIEVEMENT_VERSION='achievements-v4-progress';
 const definition=(id,ru,en,ruleRu,ruleEn,revocable=false)=>({id,name:{ru,en},description:{ru:ruleRu,en:ruleEn},revocable,icon:`achievements/${id}.webp`});
 // Kept on the server: the public catalog contains only unlocked achievements.
 export const DEFINITIONS=[
@@ -64,7 +65,7 @@ function scoreWithMinuteLeft(m,regulation){
 const dateValue=m=>Number.isFinite(Date.parse(m.startedAt))?Date.parse(m.startedAt):Infinity;
 const evidenceDate=m=>Number.isFinite(Date.parse(m.startedAt))?new Date(Date.parse(m.startedAt)+(m.recordedSeconds??m.durationSeconds??0)*1000).toISOString():null;
 
-export function computeAchievements(input){
+export function computeAchievements(input,{progressActivatedAt=null}={}){
   input=input.map(normalizeMatchResult);
   const rows=[...new Map(input.filter(m=>m.id).map(m=>[m.id,m])).values()].sort((a,b)=>dateValue(a)-dateValue(b)||a.id.localeCompare(b.id));
   const players=new Map(),matches=new Map();
@@ -132,11 +133,17 @@ export function computeAchievements(input){
       Object.assign(p.awards.get('punching-bag'),{evidence:[...p.losses,...p.wins],metric:balance,losses:p.losses.length,wins:p.wins.length});
     }else p.awards.delete('punching-bag');
   }
-  return {players,bots:computeBotAchievements(rows,regulationSeconds),matches};
+  const bots=computeBotAchievements(rows,regulationSeconds);
+  const progress=computeProgressAchievements(rows,progressActivatedAt);
+  for(const [kind,target]of [['human',players],['bot',bots]])for(const [name,entry]of progress[kind]){
+    if(!target.has(name))target.set(name,{name,kind,awards:new Map()});
+    for(const [id,award]of entry.awards)target.get(name).awards.set(id,award);
+  }
+  return {players,bots,matches};
 }
 
 export function publicAchievements(index){
-  const items=[...DEFINITIONS,...BOT_DEFINITIONS].map(d=>({...d,holders:[...(d.audience==='bot'?index.bots:index.players).values()].filter(p=>p.awards.has(d.id)).map(p=>{
+  const items=[...DEFINITIONS,...BOT_DEFINITIONS,...PROGRESS_DEFINITIONS].map(({metric,threshold,...d})=>({...d,holders:[...(d.audience==='bot'?index.bots:index.players).values()].filter(p=>p.awards.has(d.id)).map(p=>{
     const a=p.awards.get(d.id);return {name:p.name,kind:d.audience==='bot'?'bot':'human',earnedAt:a.earnedAt,metric:a.metric,losses:a.losses,wins:a.wins};
   }).sort((a,b)=>(a.earnedAt||'9999').localeCompare(b.earnedAt||'9999')||a.name.localeCompare(b.name))})).filter(d=>d.holders.length);
   return {version:ACHIEVEMENT_VERSION,mapPool:MAP_POOL,items};

@@ -34,7 +34,7 @@ export async function createService(config) {
   await mkdir(demoRoot,{recursive:true});await mkdir(staging,{recursive:true});
   const assets=await loadAssets(path.join(root,'public'));
   if(config.previewExamples===true)assets.html=assets.html.replace('<div id="content"',
-    '<aside class="warning preview-notice">Локальная проверка / Local preview. Игроки «Пример …» — демонстрационные сценарии режимов, не реальные матчи. Производственная статистика не меняется. / Players named “Пример …” are test scenarios, not real games; production statistics are unchanged.</aside><div id="content"');
+    '<aside class="warning preview-notice">Локальный тест: «Пример …» — вымышленные участники. / Local preview: “Пример …” are fictional participants. Данные публичного сайта не изменены / Production data unchanged.</aside><div id="content"');
   const online=await onlineConfig(config.online),authorize=sourceAuth(online.servers,config.ingestToken);
   const store=await openStore(config),app=express();app.disable('x-powered-by');app.enable('strict routing');
   app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Cross-Origin-Opener-Policy':'same-origin','Cross-Origin-Embedder-Policy':'require-corp','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});next();});
